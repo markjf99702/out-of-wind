@@ -196,22 +196,25 @@ function lockedNote(btn) {
 // board doesn't add another, and the bench's own back arrow goes back along the one that was added.
 let shown = null; // what's showing: a board's number, or 0 for the rack
 function go(no) {
-  if (!no) {
-    if (history.state && history.state.fromRack) { history.back(); return; } // the rack is the step before
-    history.replaceState(null, '', location.pathname + location.search);
-  } else if (!$('bench').hidden) history.replaceState(history.state, '', '#' + no);
-  else history.pushState({ fromRack: 1 }, '', '#' + no);
-  route();
+  try {
+    if (!no) {
+      if (history.state && history.state.fromRack) { history.back(); return; } // the rack is the step before
+      history.replaceState(null, '', location.href.replace(/#.*$/, ''));
+    } else if (!$('bench').hidden) history.replaceState(history.state, '', '#' + no);
+    else history.pushState({ fromRack: 1 }, '', '#' + no);
+  } catch { /* a page shown inside another may not be let change its address: go there all the same */ }
+  route(no);
 }
-function route() {
-  const no = parseInt(location.hash.slice(1), 10);
+// Shows what the address says, or the board given.
+function route(to) {
+  const no = typeof to === 'number' ? to : parseInt(location.hash.slice(1), 10);
   const want = no >= 1 && no <= BOARDS.length && unlocked(no) ? no : 0;
   if (want === shown) return; // a back step fires both popstate and hashchange
   if (want) openBoard(want);
   else showHome();
 }
-window.addEventListener('popstate', route);
-window.addEventListener('hashchange', route);
+window.addEventListener('popstate', () => route());
+window.addEventListener('hashchange', () => route());
 
 function showHome() {
   shown = 0;
@@ -949,6 +952,7 @@ window.outOfWind = {
 };
 
 route();
-if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+// The one-file copy (data-single) has no service worker to register.
+if ('serviceWorker' in navigator && !('single' in document.documentElement.dataset) && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch(() => { /* offline copy is a bonus */ });
 }

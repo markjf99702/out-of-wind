@@ -6,9 +6,11 @@
   "scripts": {
     "start": "npx --yes http-server -c-1 -p 8080 .",
     "test": "node --test --test-concurrency=1 test/unit.test.mjs && node test/e2e.mjs",
-    "par": "node scripts/par.mjs"
+    "par": "node scripts/par.mjs",
+    "build": "node scripts/build.mjs"
   },
   "devDependencies": {
+    "esbuild": "^0.28.2",
     "upng-js": "^2.1.0"
   }
 }
