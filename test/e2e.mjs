@@ -371,7 +371,7 @@ try {
 
   // ---------- the last few thou ----------
   {
-    step('nearly flat, the bench says where the face stands highest, and a stroke there finishes it');
+    step('board 3: corner strokes aren’t told off as full-length ones; nearly flat, the bench says where it stands highest, and a stroke there finishes it');
     const c = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US' });
     const pg = await c.newPage();
     watch(pg, 'endgame');
@@ -381,6 +381,16 @@ try {
       { v: 1, best: { 1: g(4, 25), 2: g(3, 30) }, benches: {}, attempts: {}, seen: { swipe: 1, stroke: 1, pencil: 1 }, unit: 'in', sound: false });
     await pg.goto(base + '#3');
     await pg.click('#introGo');
+    const { L, W } = await pg.evaluate(() => ({ L: window.outOfWind.board().L, W: window.outOfWind.board().W }));
+    // Short jack strokes on the high far right corner, the way board 3's card says, aren't scolded as
+    // straight full-length strokes that can't take out twist; a straight full-length one is.
+    await pg.click('[data-tool="jack"]');
+    const said = [];
+    for (let k = 0; k < 4; k++) { await touchSwipe(pg, cd, 560, L + 20, 140); said.push(await pg.textContent('#toast')); }
+    assert.ok(!said.some(t => /^Still in wind\?/.test(t)), 'corner strokes: ' + said.join(' | '));
+    await pg.click('[data-tool="jointer"]');
+    for (const y of [60, 100]) { await touchSwipe(pg, cd, -15, L + 15, y); said.push(await pg.textContent('#toast')); }
+    assert.ok(said.some(t => /^Still in wind\? Straight full-length strokes/.test(t)), 'full-length strokes: ' + said.join(' | '));
     // Board 3 planed flat by the solver, then a patch by the far right corner left a few thou proud.
     await pg.evaluate(async () => {
       const { solve } = await import('./js/solver.js');
@@ -395,7 +405,6 @@ try {
       }
       window.outOfWind.scene.refit();
     });
-    const { L, W } = await pg.evaluate(() => ({ L: window.outOfWind.board().L, W: window.outOfWind.board().W }));
     await pg.click('[data-tool="smoother"]');
     await touchSwipe(pg, cd, -15, L / 3, 24); // the sticks line up now, and say so first
     assert.equal(await pg.textContent('#toast'), 'The winding sticks line up: out of wind.');
