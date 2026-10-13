@@ -73,6 +73,12 @@ function renderRack() {
     setTimeout(next, 0);
   };
   setTimeout(next, 30);
+  // How far along you are, pencilled under the title.
+  const done = BOARDS.filter(d => state.best[d.no]), fas = done.filter(d => state.best[d.no].marks === 4).length;
+  $('progress').hidden = !done.length;
+  $('progress').textContent = done.length === BOARDS.length
+    ? `All ${BOARDS.length} done${fas ? ', ' + fas + ' graded FAS' : ''}. The tabletop’s ready.`
+    : `${done.length} of ${BOARDS.length} done${fas ? ', ' + fas + ' graded FAS' : ''}`;
   const bench = state.last && state.benches[state.last];
   const resume = $('resumeBtn');
   if (bench && !bench.finished && !bench.failed && unlocked(state.last)) {

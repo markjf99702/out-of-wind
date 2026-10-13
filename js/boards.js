@@ -37,30 +37,37 @@ export const BOARDS = [
   {
     no: 6, wood: 'redoak', L: 838, W: 165, seed: 606, twist: 0.24, cup: 0.15, rough: 0.12, flips: [[0.3, -0.2]], spare: 0.7,
     title: 'Wind and cup', t0: 20.33, par: 57, best: 19.75,
+    note: 'In wind and cupped, with the grain turning around near the near end. Oak’s open pores tear if you plane against it, so read the edge and take each end its own way.',
   },
   {
     no: 7, wood: 'cherry', L: 762, W: 178, seed: 707, bow: -0.21, humps: [[0.3, 0.6, 60, 45, 0.17]], knots: [[0.3, 0.62, 11]], rough: 0.12, spare: 0.6,
     title: 'A knot', t0: 20.19, par: 50, best: 19.65,
+    note: 'High in the middle, with a hump around a knot toward the near end. The grain swirls round a knot and tears whichever way you go, so take the knot down with the smoother.',
   },
   {
     no: 8, wood: 'walnut', L: 838, W: 190, seed: 808, twist: 0.28, bow: 0.21, knots: [[0.45, 0.68, 10]], rough: 0.12, spare: 0.6,
     title: 'Bowed and in wind', t0: 20.29, par: 41, best: 19.65,
+    note: 'Bowed with the ends high, and in wind. Sight down the sticks first, then let the jointer bring the ends down. There’s a knot just short of the middle.',
   },
   {
     no: 9, wood: 'mahogany', L: 762, W: 165, seed: 909, cup: 0.17, twist: 0.1, ribbon: 46, rough: 0.12, spare: 0.6,
     title: 'Interlocked', t0: 20.21, par: 58, best: 19.65,
+    note: 'Interlocked grain: stripes down the board run opposite ways, so every stroke goes against some of it. Flatten it, then take fine passes with the smoother until the tear-out is gone.',
   },
   {
     no: 10, wood: 'whiteoak', L: 762, W: 165, seed: 1010, bow: 0.24, twist: 0.17, flips: [[0.42, 0.35]], rough: 0.12, spare: 0.5,
     title: 'Quartersawn', t0: 20.17, par: 52, best: 19.55,
+    note: 'Quartersawn white oak, hollow and in wind, with the grain turning around just before the middle. The ray fleck lifts if you go against it.',
   },
   {
     no: 11, wood: 'maple', L: 838, W: 178, seed: 1111, twist: 0.28, cup: -0.17, flips: [[0.6, -0.4]], knots: [[0.25, 0.4, 8]], rough: 0.12, spare: 0.5,
     title: 'Hard and twisted', t0: 20.18, par: 72, best: 19.55,
+    note: 'Twisted, and high along the middle across its width, with the grain turning around past the middle and a knot toward the near end. Hard maple tears at the first wrong move.',
   },
   {
     no: 12, wood: 'curly', L: 762, W: 165, seed: 1212, cup: 0.17, bow: 0.15, curl: 52, rough: 0.12, spare: 0.5,
     title: 'Curly', t0: 20.22, par: 64, best: 19.55,
+    note: 'The curl turns every inch, so there’s no right way to plane it. Flatten it with the jointer and expect tear-out, then take fine passes with the smoother until it’s gone.',
   },
   {
     no: 13, panel: true, L: 686, seed: 1313, twist: 0.18, rough: 0.12, spare: 0.7,

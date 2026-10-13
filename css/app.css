@@ -43,6 +43,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brass); outline
 }
 .masthead h1 { margin: 0; font: 400 46px/1 var(--disp); letter-spacing: -.01em; }
 .masthead .lede { margin: 10px 0 0; color: var(--ink2); font-size: 17px; max-width: 30em; }
+.masthead .progress { margin: 8px 0 0; font: 400 24px/1.1 var(--pencil); color: #e9b48a; }
 .go {
   background: var(--brass); color: #22180f; border: 0; border-radius: 999px; padding: 11px 22px;
   font: 700 16px var(--body); box-shadow: 0 2px 0 rgba(0, 0, 0, .25);
