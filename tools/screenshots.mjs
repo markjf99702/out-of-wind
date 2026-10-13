@@ -122,7 +122,7 @@ async function midStroke(page, no, lanes, stroke) {
     p { margin: 22px 0 0; font: 400 31px/1.3 "Alegreya Sans", sans-serif; color: rgba(243, 233, 216, .78); }
     .stamp { margin-top: 26px; font: 400 54px/1 "Reenie Beanie", cursive; color: #e0533a; transform: rotate(-7deg); transform-origin: left; }
     /* The bench, closer in: the shavings, the board with the plane on it, and the top of the side view. */
-    .bench { position: absolute; right: 0; top: 0; width: 720px; height: 630px; background: url(${bench}) no-repeat; background-size: 950px auto; background-position: -175px -50px;
+    .bench { position: absolute; right: 0; top: 0; width: 720px; height: 630px; background: url(${bench}) no-repeat; background-size: 950px auto; background-position: -195px -50px;
       -webkit-mask-image: linear-gradient(to right, transparent 0, transparent 40px, #000 190px); mask-image: linear-gradient(to right, transparent 0, transparent 40px, #000 190px); }
   </style><div class="bench"></div><div class="words"><h1>Out of Wind</h1><p>Flatten rough boards<br>with hand planes.</p><div class="stamp">FAS</div></div>`);
   await card.evaluate(() => document.fonts.ready);
