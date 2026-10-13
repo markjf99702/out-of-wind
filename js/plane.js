@@ -45,6 +45,7 @@ export class Stroke {
     this.run = 0; this.longest = 0; this.fullWidthRows = 0;
     this.shavings = []; // each continuous cut: [{ i, w: cut width in mm, d: depth }, ...]
     this.current = null;
+    this.changed = []; // cells cut since the page last looked, so it can redraw just those
   }
 
   // Moves the blade to (x, y). Cuts every row the mouth passes over, going forward.
@@ -109,15 +110,16 @@ export class Stroke {
       while (m >= 2 && (HZ[m - 1] - HZ[m - 2]) * (x - HX[m - 2]) <= (z - HZ[m - 2]) * (HX[m - 1] - HX[m - 2])) m--;
       HX[m] = x; HZ[m] = z; m++;
     }
-    let zm;
+    let zm, sl = 0;
     if (m === 1) zm = HZ[0];
     else {
       let k = 0;
       while (k < m - 2 && HX[k + 1] < p) k++;
       if (p === HX[k + 1] && i > p && k < m - 2) k++;
-      const s = (HZ[k + 1] - HZ[k]) / (HX[k + 1] - HX[k]);
-      zm = HZ[k] + s * (i - HX[k]); // the sole's height at the mouth
+      sl = (HZ[k + 1] - HZ[k]) / (HX[k + 1] - HX[k]);
+      zm = HZ[k] + sl * (i - HX[k]); // the sole's height at the mouth
     }
+    this.ride = { z: zm, slope: sl / b.dx, y: yc }; // for the side view: where the sole sits
     // The blade's edge, and the cut.
     const bh = t.blade / 2;
     const k0 = Math.max(0, Math.ceil((yc - bh) / dy - 0.5)), k1 = Math.min(NY - 1, Math.floor((yc + bh) / dy - 0.5));
@@ -133,6 +135,7 @@ export class Stroke {
       top[id] = edge;
       b.cut[id] = 1;
       b.pencil[id] = 0;
+      this.changed.push(id);
       res.cells++; res.volume += took; depthSum += took;
       if (j < lo) lo = j;
       if (j > hi) hi = j;

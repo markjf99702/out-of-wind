@@ -63,6 +63,7 @@ export class Board {
     const ribbon = d.ribbon || 0; // interlocked stripes across the width, wavelength in mm
     const flips = d.flips || []; // [[x as a fraction of L, slant in mm along per mm across], ...]
     const phase = r() * Math.PI * 2;
+    this.figure = { phase, curlNoise, curl, ribbon }; // the page draws curl and ribbon stripes where the grain turns
 
     for (let i = 0; i < NX; i++) {
       const x = this.xOf(i), xn = (2 * x) / L - 1;
@@ -72,7 +73,7 @@ export class Board {
         // The warp, carried by the whole board, both faces.
         let w = (d.bow || 0) * (xn * xn - 1 / 3) + (d.cup || 0) * (yn * yn - 1 / 3) + (d.twist || 0) * xn * yn;
         w += (st.cup || 0) * (ys * ys - 1 / 3) + (st.step || 0) + (st.twist || 0) * xn * ys;
-        w += (d.wander ?? 0.12) * lowNoise(x, y);
+        w += (d.wander ?? 0.08) * lowNoise(x, y);
         for (const [hx, hy, rx, ry, h] of humps) {
           const u = (x - hx * L) / rx, v = (y - hy * W) / ry;
           w += h * Math.exp(-0.5 * (u * u + v * v));
@@ -80,7 +81,7 @@ export class Board {
         const id = this.idx(i, j);
         this.bottom[id] = w;
         // Thickness wanders a little, and the sawn face is rough on top of that.
-        const t = d.t0 + (d.vary ?? 0.2) * varyNoise(x, y);
+        const t = d.t0 + (d.vary ?? 0.14) * varyNoise(x, y);
         const rough = (d.rough ?? 0.3) * (0.5 + 0.35 * roughNoise(x, y) + 0.15 * (r() * 2 - 1));
         this.top[id] = w + t + rough;
         this.strip[id] = k;
