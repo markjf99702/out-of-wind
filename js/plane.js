@@ -184,6 +184,7 @@ export class Stroke {
       counts: this.cells > 0,
       skated: this.cells === 0 && this.travel >= 30,
       across: this.cells === 0 && this.spanY > 25 && this.spanY > this.spanX,
+      straight: this.spanY < 25, // straight down the board, not from corner to corner
       from: this.from ?? 0, to: this.to ?? 0, // the stretch of the board the mouth went over (mm)
       dir: this.dir,
       cells: this.cells,

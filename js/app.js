@@ -510,7 +510,7 @@ function coach(r) {
   if (no === 1 && strokes === 1 && tool === 'jointer') hint('c1a', 'The jointer only cut where the board stands high. Keep taking full-length strokes, lane by lane, until the pencil’s gone.');
   else if (no === 1 && strokes === 1) hint('c1b', 'Try the jointer: long strokes, the whole length of the board.');
   else if (no <= 2 && rough && fl < 0.3 && rough < board.cut.length * 0.06) hint('edges', 'Nearly flat. Let the plane hang off the edges to reach the last rough strips.');
-  else if (no === 3 && strokes === 4 && Math.abs(board.wind().wind) > WIND * 1.5) hint('c3', 'Still in wind? Straight full-length strokes can’t take out twist. Work the two high corners.');
+  else if (no === 3 && strokes >= 4 && r.straight && Math.abs(board.wind().wind) > WIND * 1.5) hint('c3', 'Still in wind? Straight full-length strokes can’t take out twist. Work the two high corners.');
   if (fl <= FLAT && rough && rough < board.cut.length * 0.03) toast('Flat, but rough-sawn spots are left ' + roughWhere() + '.', 3600);
 }
 
@@ -519,6 +519,7 @@ function coach(r) {
 function stuck() {
   const n = flatLog.length, now = flatLog[n - 1];
   if (n < 9 || now <= 1.4 * FLAT || now < flatLog[n - 9] * 0.9 || strokes - stuckAt < 10) return false;
+  if (board.roughLeft() > board.cut.length * 0.25) return false; // still taking the saw marks off: too soon to say
   const sh = board.shape(), bow = Math.abs(sh.bow), cup = Math.abs(sh.cup), twist = 2 * Math.abs(sh.twist);
   let text;
   if (Math.max(bow, cup, twist) < now * 0.3) {
@@ -787,12 +788,12 @@ window.outOfWind = {
   board: () => board,
   scene,
   toast,
-  swipe(t, x0, x1, y) {
+  swipe(t, x0, x1, y, y1 = y) {
     ready();
     selectTool(t); setMode('plane');
     beginStroke({ x: x0, y });
-    const steps = Math.max(2, Math.ceil(Math.abs(x1 - x0) / 25));
-    for (let k = 1; k <= steps; k++) moveStroke({ x: x0 + ((x1 - x0) * k) / steps, y });
+    const steps = Math.max(2, Math.ceil(Math.hypot(x1 - x0, y1 - y) / 25));
+    for (let k = 1; k <= steps; k++) moveStroke({ x: x0 + ((x1 - x0) * k) / steps, y: y + ((y1 - y) * k) / steps });
     endStroke();
   },
 };

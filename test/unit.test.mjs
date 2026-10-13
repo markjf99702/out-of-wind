@@ -132,6 +132,9 @@ test('a stroke that cuts nothing is free, and says whether it skated or went acr
   assert.equal(a.counts, false);
   assert.equal(a.across, true);
   assert.equal(a.skated, false);
+  // And a stroke from one corner diagonally to the other isn't a straight one (board 3's hint is for those).
+  assert.equal(stroke(plain({ twist: 0.5 }), 'jointer', -40, 800, 20, 160, rng(1)).straight, false);
+  assert.equal(stroke(plain({ twist: 0.5 }), 'jointer', -40, 800, 20, 20, rng(1)).straight, true);
 });
 
 test('the straightedge says what it sees: hollow, rocking on a high spot, or the face falling away', () => {
