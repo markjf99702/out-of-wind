@@ -815,33 +815,60 @@ export class Scene {
     ctx.restore();
   }
 
-  // Sighting down the winding sticks from the near end. You crouch until the near stick's top edge
-  // just hides the bottom of the far one; what shows of the far stick above it is a sliver, even
-  // all along when the face is out of wind, a wedge when it's in wind (exaggerated a great deal).
+  // Sighting down the winding sticks from the near end, crouched just above the near stick: the face
+  // of the board runs away between them, and the far stick stands above the near one. Out of wind,
+  // their top edges are parallel; in wind, the far one tilts (exaggerated a great deal). The far stick
+  // is pale with dark inlays at its ends, the near one dark with pale ones, as winding sticks are.
   drawSighting(ctx, U, V, bw, H) {
     const b = this.board, w = b.wind();
     const lined = Math.abs(w.wind) < 0.12;
-    const ang = lined ? 0 : clamp(Math.atan((w.wind / b.W) * 12), -0.16, 0.16);
-    const cx = U + bw / 2, top = V + H * 0.5;
-    const span = Math.min(bw * 0.86, 300), far = span * 0.82;
-    // The far stick: pale, dark inlays at its ends, pivoting about its middle.
+    const ang = lined ? 0 : clamp(Math.atan((w.wind / b.W) * 24), -0.2, 0.2);
+    const cx = U + bw / 2, span = Math.min(bw * 0.9, 520);
+    const eye = V + H * 0.5; // the near stick's top edge
+    const nh = Math.max(16, H * 0.24), fh = Math.max(7, H * 0.09), farLen = span * 0.56;
+    const farY = eye - Math.max(10, H * 0.16); // where the far stick sits on the board
+    // The face running away from you, the far end turned with the far stick.
+    const wood = rgb(b.wood(b.NY >> 1).early);
+    const near = span * 0.86, far = farLen * 0.9;
+    const tilt = (x, y) => [cx + (x - cx) * Math.cos(-ang) - (y - farY) * Math.sin(-ang), farY + (x - cx) * Math.sin(-ang) + (y - farY) * Math.cos(-ang)];
+    const g = ctx.createLinearGradient(0, farY, 0, eye);
+    g.addColorStop(0, `rgb(${wood[0] * 0.3 | 0},${wood[1] * 0.27 | 0},${wood[2] * 0.24 | 0})`);
+    g.addColorStop(1, `rgb(${wood[0] * 0.55 | 0},${wood[1] * 0.5 | 0},${wood[2] * 0.44 | 0})`);
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(...tilt(cx - far / 2, farY));
+    ctx.lineTo(...tilt(cx + far / 2, farY));
+    ctx.lineTo(cx + near / 2, eye + 1);
+    ctx.lineTo(cx - near / 2, eye + 1);
+    ctx.closePath();
+    ctx.fill();
+    // The far stick, pale, its dark inlays at the ends.
     ctx.save();
-    ctx.translate(cx, top);
+    ctx.translate(cx, farY);
     ctx.rotate(-ang);
-    ctx.fillStyle = '#e8d9b6';
-    ctx.fillRect(-far / 2, -8, far, 26);
+    const pale = ctx.createLinearGradient(0, -fh, 0, 0);
+    pale.addColorStop(0, '#f3e8cc'); pale.addColorStop(1, '#bfae88');
+    ctx.fillStyle = pale;
+    ctx.fillRect(-farLen / 2, -fh, farLen, fh);
     ctx.fillStyle = '#2d211a';
-    ctx.fillRect(-far / 2, -8, 14, 7);
-    ctx.fillRect(far / 2 - 14, -8, 14, 7);
+    const inl = Math.max(8, farLen * 0.06);
+    ctx.fillRect(-farLen / 2, -fh, inl, fh * 0.55);
+    ctx.fillRect(farLen / 2 - inl, -fh, inl, fh * 0.55);
     ctx.restore();
-    // The near stick, square to your eye, hiding all but the top of the far one.
-    ctx.fillStyle = '#2d211a';
-    ctx.fillRect(cx - span / 2, top - 2, span, H);
-    ctx.fillStyle = 'rgba(232,217,182,.9)';
-    ctx.fillRect(cx - span / 2, top - 2, 16, 4);
-    ctx.fillRect(cx + span / 2 - 16, top - 2, 16, 4);
+    // The near stick, dark, square to your eye, with pale inlays.
+    const dark = ctx.createLinearGradient(0, eye, 0, eye + nh);
+    dark.addColorStop(0, '#3a2a1f'); dark.addColorStop(1, '#1d1510');
+    ctx.fillStyle = dark;
+    ctx.fillRect(cx - span / 2, eye, span, nh);
+    ctx.fillStyle = 'rgba(255,240,210,.35)';
+    ctx.fillRect(cx - span / 2, eye, span, 1);
+    ctx.fillStyle = '#e8d9b6';
+    const inn = Math.max(12, span * 0.06);
+    ctx.fillRect(cx - span / 2, eye, inn, nh * 0.4);
+    ctx.fillRect(cx + span / 2 - inn, eye, inn, nh * 0.4);
+    // What it says.
     const msg = lined ? 'Out of wind' : (w.wind > 0 ? 'In wind: the far right and near left corners are high' : 'In wind: the far left and near right corners are high');
-    this.text(ctx, msg, cx, V + H * 0.78, { align: 'center', color: lined ? '#cfe3b8' : 'rgba(243,233,216,.8)' });
+    this.text(ctx, msg, cx, Math.min(V + H - 10, eye + nh + 12), { align: 'center', color: lined ? '#cfe3b8' : 'rgba(243,233,216,.85)', font: '600 13px "Alegreya Sans", system-ui, sans-serif' });
   }
 }
 
