@@ -4,6 +4,14 @@
 
 **Flatten rough boards with hand planes.** Each board comes off the sawmill bowed, cupped or twisted, sometimes with grain that turns around partway along, and has to finish flat at three-quarters of an inch for a tabletop. Swipe along it to take a stroke: the plane rides on the high spots and cuts only there. Scribble pencil across the face and plane until it's gone, check it with a straightedge and winding sticks, and stop before you go through the gauge line.
 
+<p align="center">
+  <img src="docs/phone-planing.png" alt="A cherry board on the bench with the jointer partway along it and a shaving in its mouth, pencil scribble left on the rough patches, shavings curled on the bench beside it, and the side view showing light under the plane's sole" width="250">
+  &nbsp;
+  <img src="docs/phone-sticks.png" alt="Board 3, poplar, with winding sticks across both ends and the view sighting down them: the far stick tilts against the near one, and the note says the far right and near left corners are high" width="250">
+  &nbsp;
+  <img src="docs/phone-rack.png" alt="The rack of boards: the first four planed with their grades pencilled on, FAS, Select, FAS and No. 1, the fifth open in rough ash, and the rest locked" width="250">
+</p>
+
 ## How it plays
 
 - **Swipe along the board to take a stroke.** The blade cuts under your finger, pushing away or pulling toward you; dragging back lifts the iron. A stroke counts once the plane has gone somewhere on the board. The first time on the bench, a faint plane glides along the board to show one.
@@ -31,6 +39,8 @@ npm start                     # serves it at http://localhost:8080 (any static f
 npm test                      # the planes, boards and solver in Node, then plays it in Chromium (needs Playwright)
 npm run par                   # works out each board's rough thickness and par; add -- --write to save them
 node tools/make-icons.mjs     # redraws the PNG icons from icon.svg
+node scripts/cards.mjs        # plays each board the way its card says, and prints the strokes it took
+node tools/screenshots.mjs    # redraws docs/phone-*.png and og.png (npm install first, for upng-js)
 ```
 
 To put it online with GitHub Pages: **Settings → Pages → Build and deployment → Deploy from a branch**, then pick `main` and `/ (root)`. The `CNAME` file gives it its own address, out-of-wind.junkdrawer.works.
@@ -51,3 +61,4 @@ To put it online with GitHub Pages: **Settings → Pages → Build and deploymen
 - `sw.js`: keeps a copy for playing offline.
 - `test/unit.test.mjs`: the planes, the measurements, the boards and the solver, in Node; `test/e2e.mjs` plays the real page in Chromium on a phone, a laptop and a phone on its side.
 - `icon.svg`, `tools/icon-full-bleed.svg` and `tools/make-icons.mjs`: the icon, and the script that draws the PNG icons from it.
+- `og.png`, `docs/` and `tools/screenshots.mjs`: the link preview, the screenshots above, and the script that takes them.
