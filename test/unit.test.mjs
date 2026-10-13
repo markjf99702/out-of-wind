@@ -4,12 +4,13 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { Board, restLine, FLAT, TABLETOP } from '../js/board.js';
+import { Board, restLine, readEdge, FLAT, WIND, TABLETOP } from '../js/board.js';
 import { Stroke, PLANES, stroke } from '../js/plane.js';
 import { BOARDS, parFor, keepFor } from '../js/boards.js';
 import { WOODS } from '../js/woods.js';
 import { solve, aim } from '../js/solver.js';
 import { rng } from '../js/rng.js';
+import { followAll } from '../scripts/cards.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -101,7 +102,7 @@ test('planing against the grain tears out; with the grain it does not', () => {
   assert.ok(fine.tornLeft() <= 2, 'a finely set smoother gets away with it');
 });
 
-test('a stroke counts once the plane travels, and dragging back lifts the iron', () => {
+test('a stroke counts when it takes a shaving, and dragging back lifts the iron', () => {
   const b = plain({});
   const s = new Stroke(b, 'smoother', 100, 90, rng(4));
   s.move(101, 90);
@@ -114,6 +115,67 @@ test('a stroke counts once the plane travels, and dragging back lifts the iron',
   const e = t.end();
   assert.equal(e.counts, true);
   assert.equal(e.dir, 1);
+});
+
+test('a stroke that cuts nothing is free, and says whether it skated or went across', () => {
+  // A short jointer stroke in the middle of a hollow rides over it: no shaving, so no stroke.
+  const hollow = plain({ bow: 1.2 });
+  const r = stroke(hollow, 'jointer', 300, 460, 90, 90, rng(1));
+  assert.equal(r.cells, 0);
+  assert.equal(r.counts, false, 'it doesn’t count');
+  assert.equal(r.skated, true, 'the plane went along the board and took nothing');
+  assert.ok(r.from >= 290 && r.to <= 470, 'and it stayed in the middle: ' + r.from + '..' + r.to);
+  // A swipe across the board isn't a stroke either, and is told apart from one that skated.
+  const across = new Stroke(plain({}), 'jointer', 300, 10, rng(1));
+  for (let y = 20; y <= 170; y += 15) across.move(300, y);
+  const a = across.end();
+  assert.equal(a.counts, false);
+  assert.equal(a.across, true);
+  assert.equal(a.skated, false);
+});
+
+test('the straightedge says what it sees: hollow, rocking on a high spot, or the face falling away', () => {
+  const along = b => readEdge(b.straightedge(0.5, 90, b.L - 0.5, 90));
+  assert.equal(along(plain({})).kind, 'none', 'no light on a flat face');
+  assert.equal(along(plain({ bow: 0.6 })).kind, 'hollow', 'light in the middle of a hollow');
+  const crown = along(plain({ bow: -0.6 }));
+  assert.equal(crown.kind, 'rocks', 'a crown rocks it');
+  assert.ok(crown.t0 > 0.3 && crown.t1 < 0.7, 'on the middle: ' + crown.t0.toFixed(2) + '..' + crown.t1.toFixed(2));
+  const hump = along(plain({ humps: [[0.75, 0.5, 60, 3000, 0.4]] }));
+  assert.equal(hump.kind, 'rocks');
+  assert.ok(hump.t0 > 0.55, 'a hump toward the far end rocks it there');
+  const droop = along(plain({ humps: [[1, 0.5, 120, 3000, -0.5]] }));
+  assert.equal(droop.kind, 'end', 'the far end falls away');
+  const cup = plain({ cup: 0.6 });
+  assert.equal(readEdge(cup.straightedge(380, 0.5, 380, cup.W - 0.5)).kind, 'hollow', 'across a cup');
+  assert.equal(along(plain({ twist: 0.8 })).kind, 'none', 'a twisted face is straight along each line');
+});
+
+test('the winding sticks line up on a finished face, and not on a twisted one', () => {
+  assert.equal(plain({ twist: 0.3 }).outOfWind(), false);
+  assert.equal(plain({}).outOfWind(), true);
+  assert.ok(Math.abs(plain({ twist: 0.04 }).wind().wind) < WIND, 'a hair of twist reads as lined up');
+});
+
+test('board 3 is in wind and a little hollow, and nothing else: no crown for its card to miss', () => {
+  const sh = new Board(BOARDS[2]).shape();
+  assert.ok(sh.twist > 0.2, 'in wind: ' + sh.twist.toFixed(3));
+  assert.ok(sh.bow >= 0 && sh.bow < 0.25, 'the ends a little high, never a crown: ' + sh.bow.toFixed(3));
+  assert.ok(Math.abs(sh.cup) < 0.05, 'no cup: ' + sh.cup.toFixed(3));
+});
+
+test('each board’s card can be followed to the finish by someone who sees only what the page shows', () => {
+  // scripts/cards.mjs plays each board the way its card says, judging the face only by the sticks,
+  // the straightedge's light, the rough patches, the grain on the edge and tear-out, with lanes at
+  // three spacings. Every board up to the panel has to come out flat, above the line, within par.
+  for (const def of BOARDS.filter(d => !d.panel)) {
+    const r = followAll(def);
+    for (const run of r.runs) {
+      assert.equal(run.culled, false, `board ${def.no}: through the line following its card`);
+      assert.equal(run.done, true, `board ${def.no}: not finished following its card (flat ${run.flat.toFixed(3)} after ${run.strokes} strokes)`);
+    }
+    assert.ok(r.median <= def.par, `board ${def.no}: the card takes ${r.median} strokes, over par ${def.par}`);
+  }
 });
 
 test('winding sticks see twist, and a straightedge sees light in a hollow', () => {

@@ -10,6 +10,9 @@ import { WOODS } from './woods.js';
 export const CELL = 5; // mm: one grid cell is 5 mm square
 export const FLAT = 0.15; // mm: a face this close to a plane counts as flat (about six thou)
 export const TABLETOP = 19.05; // mm: three-quarters of an inch, what the tabletop needs
+// mm across the board: winding sticks this close read as lined up. Each stick rests on the highest
+// points under it, so a face that's flat to FLAT can still show a little more than that between them.
+export const WIND = 0.2;
 
 export class Board {
   constructor(def) {
@@ -262,6 +265,11 @@ export class Board {
     return this.roughLeft() === 0 && this.flatness() <= FLAT;
   }
 
+  // Do the winding sticks line up? A finished face always counts as out of wind.
+  outOfWind() {
+    return Math.abs(this.wind().wind) < WIND || this.done();
+  }
+
   // ---------- saving a board part-way through ----------
 
   save() {
@@ -276,6 +284,40 @@ export class Board {
     unpack(s.cut, this.cut); unpack(s.torn, this.torn); unpack(s.pencil, this.pencil);
     return true;
   }
+}
+
+// ---------- reading a straightedge ----------
+// What a straightedge laid on the face shows (res from Board.straightedge): what it rests on, how much
+// light there is, and what that says about the face, the way you'd read it.
+//   none    no light worth the name;
+//   hollow  it rests at both ends with light between: the middle is low;
+//   rocks   it pivots on a high stretch, t0..t1 (fractions along it), with light beyond it on both sides,
+//           or resting on one end and a high spot with the face falling away past the spot;
+//   start / end  it lies along the rest, and the face falls away toward its start (or its end);
+//   two     it rests on two high spots with light between them and beyond.
+export function readEdge(res) {
+  const g = res.gaps, n = g.length, gap = res.gap;
+  const none = { kind: 'none', gap, t0: 0, t1: 1, before: 0, after: 0, inner: 0 };
+  if (gap < 0.05) return none;
+  // Where it touches, in separate stretches wherever light shows between them.
+  const lim = Math.max(0.012, gap * 0.15), parts = [];
+  for (let k = 0; k < n; k++) {
+    if (g[k] >= lim) continue;
+    const last = parts[parts.length - 1];
+    if (last && k - last[1] <= 1) last[1] = k; else parts.push([k, k]);
+  }
+  const a = parts[0], z = parts[parts.length - 1], f = k => k / (n - 1);
+  let before = 0, after = 0, inner = 0;
+  for (let k = 0; k < a[0]; k++) before = Math.max(before, g[k]);
+  for (let k = z[1] + 1; k < n; k++) after = Math.max(after, g[k]);
+  for (let k = a[0]; k <= z[1]; k++) inner = Math.max(inner, g[k]);
+  const out = (kind, s0, s1) => ({ kind, gap, t0: f(s0), t1: f(s1), before, after, inner });
+  const atStart = f(a[0]) < 0.08, atEnd = f(z[1]) > 0.92, lit = 0.04, apart = inner >= Math.max(lit, gap * 0.3);
+  if (atStart && atEnd && apart) return out('hollow', a[0], z[1]);
+  if (before >= lit && after >= lit) return apart ? out('two', a[0], z[1]) : out('rocks', a[0], z[1]);
+  if (apart && atStart && after >= lit) return out('rocks', z[0], z[1]); // on the start and a high spot
+  if (apart && atEnd && before >= lit) return out('rocks', a[0], a[1]);
+  return before >= after ? out('start', a[0], z[1]) : out('end', a[0], z[1]);
 }
 
 // ---------- resting a straight thing on points ----------

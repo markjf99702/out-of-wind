@@ -1,7 +1,7 @@
 // Out of Wind: the page. The rack of boards, the bench, strokes from your finger, the checks,
 // the grading, and keeping each board you've started so you can come back to it.
 
-import { Board, FLAT } from './board.js';
+import { Board, FLAT, WIND, readEdge } from './board.js';
 import { Stroke, PLANES } from './plane.js';
 import { BOARDS, boardName, keepFor } from './boards.js';
 import { WOODS, rgb } from './woods.js';
@@ -443,7 +443,7 @@ function coach(r) {
   if (no === 1 && strokes === 1 && tool === 'jointer') hint('c1a', 'The jointer only cut where the board stands high. Keep taking full-length strokes, lane by lane, until the pencil’s gone.');
   else if (no === 1 && strokes === 1) hint('c1b', 'Try the jointer: long strokes, the whole length of the board.');
   else if (no <= 2 && rough && fl < 0.3 && rough < board.cut.length * 0.06) hint('edges', 'Nearly flat. Let the plane hang off the edges to reach the last rough strips.');
-  else if (no === 3 && strokes === 4 && Math.abs(board.wind().wind) > 0.3) hint('c3', 'Still in wind? Straight full-length strokes can’t take out twist. Work the two high corners.');
+  else if (no === 3 && strokes === 4 && Math.abs(board.wind().wind) > WIND * 1.5) hint('c3', 'Still in wind? Straight full-length strokes can’t take out twist. Work the two high corners.');
   if (fl <= FLAT && rough && rough < board.cut.length * 0.03) toast('Flat, but rough-sawn spots are left ' + roughWhere() + '.', 3600);
 }
 

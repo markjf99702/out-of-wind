@@ -1,16 +1,19 @@
-// Works out each board's rough thickness (t0), par and best finish by letting the solver plane it
-// (par is the solver's strokes with a tenth more; see parFor in js/boards.js):
+// Works out each board's rough thickness (t0), par and best finish by letting the solver plane it,
+// and a person following the card (scripts/cards.mjs) too:
 //   node scripts/par.mjs            prints the table
 //   node scripts/par.mjs --write    also writes the numbers into js/boards.js
 //   node scripts/par.mjs 3 7        only boards 3 and 7
 // The solver's choices don't depend on how thick the board starts, so one run per board is enough:
 // t0 is set so the solver finishes `spare` millimetres above the tabletop's three-quarters.
+// Par is the solver's strokes and half as many again (parFor in js/boards.js), or what the person
+// following the card took, whichever is more, so a board's card can always be followed to par.
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Board, TABLETOP } from '../js/board.js';
 import { BOARDS, parFor } from '../js/boards.js';
 import { solve } from '../js/solver.js';
+import { followAll } from './cards.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const write = process.argv.includes('--write');
@@ -26,9 +29,10 @@ for (const def of BOARDS) {
   const t0 = +(22 + TABLETOP + def.spare - r.thinnest).toFixed(2);
   const best = +(TABLETOP + def.spare).toFixed(2);
   const tools = r.strokes.slice(0, r.par).reduce((m, s) => ((m[s.tool] = (m[s.tool] || 0) + 1), m), {});
-  const par = parFor(r.par);
+  const card = followAll({ ...def, t0 });
+  const par = Math.max(parFor(r.par), card.done ? card.median : 0);
   results.push({ no: def.no, t0, par, best });
-  console.log(`No. ${String(def.no).padStart(2)}  t0 ${t0.toFixed(2)}  par ${String(par).padStart(3)} (solver ${r.par})  best ${best.toFixed(2)}  `
+  console.log(`No. ${String(def.no).padStart(2)}  t0 ${t0.toFixed(2)}  par ${String(par).padStart(3)} (solver ${r.par}, the card ${card.done ? card.median : 'unfinished'})  best ${best.toFixed(2)}  `
     + `(${Object.entries(tools).map(([k, v]) => k + ' ' + v).join(', ')}; tear-out left ${r.torn}; ${Math.round(performance.now() - t)} ms)`);
 }
 

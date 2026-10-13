@@ -830,7 +830,7 @@ export class Scene {
   // is pale with dark inlays at its ends, the near one dark with pale ones, as winding sticks are.
   drawSighting(ctx, U, V, bw, H) {
     const b = this.board, w = b.wind();
-    const lined = Math.abs(w.wind) < 0.12;
+    const lined = b.outOfWind();
     const ang = lined ? 0 : clamp(Math.atan((w.wind / b.W) * 24), -0.2, 0.2);
     const cx = U + bw / 2, span = Math.min(bw * 0.9, 520);
     const eye = V + H * 0.5; // the near stick's top edge

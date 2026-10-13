@@ -33,7 +33,8 @@ export class Stroke {
     this.t = typeof tool === 'string' ? PLANES[tool] : tool;
     this.rand = rand;
     this.x = x; this.y = y; // where the blade is now
-    this.x0 = x;
+    this.x0 = x; this.y0 = y;
+    this.spanX = 0; this.spanY = 0; // how far the finger has gone along and across from where it started
     this.dir = 0; // +1 toward the far end, -1 toward the near end, 0 until the plane has moved
     this.next = -1; // the next row the mouth will cut
     this.roll = board.fit().c;
@@ -51,6 +52,8 @@ export class Stroke {
   // Returns what happened on the way, for the sound and the shaving.
   move(x, y) {
     const b = this.b, out = { rows: 0, cells: 0, volume: 0, torn: 0, width: 0, cutting: false };
+    this.spanX = Math.max(this.spanX, Math.abs(x - this.x0));
+    this.spanY = Math.max(this.spanY, Math.abs(y - this.y0));
     if (!this.dir) {
       if (Math.abs(x - this.x0) < 3) { this.y = y; return out; }
       this.dir = x > this.x0 ? 1 : -1;
@@ -74,6 +77,7 @@ export class Stroke {
     }
     const on0 = Math.min(Math.max(px, 0), b.L), on1 = Math.min(Math.max(x, 0), b.L);
     this.travel += Math.abs(on1 - on0);
+    this.from = Math.min(this.from ?? on0, on0, on1); this.to = Math.max(this.to ?? on1, on0, on1);
     this.x = x; this.y = y;
     return out;
   }
@@ -170,12 +174,17 @@ export class Stroke {
 
   breakShaving() { this.run = 0; this.current = null; }
 
-  // The stroke is over. counts: whether it counts as a stroke (the plane went somewhere on the board).
+  // The stroke is over. counts: whether it counts as a stroke, which is when it took a shaving.
+  // skated: the plane went along the board and cut nothing (the sole rode on higher wood);
+  // across: the finger went across the board rather than along it.
   end() {
     const b = this.b;
     const longest = this.longest * b.dx;
     return {
-      counts: this.cells > 0 || this.travel >= 30,
+      counts: this.cells > 0,
+      skated: this.cells === 0 && this.travel >= 30,
+      across: this.cells === 0 && this.spanY > 25 && this.spanY > this.spanX,
+      from: this.from ?? 0, to: this.to ?? 0, // the stretch of the board the mouth went over (mm)
       dir: this.dir,
       cells: this.cells,
       volume: this.volume,
