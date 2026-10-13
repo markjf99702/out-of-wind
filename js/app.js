@@ -454,6 +454,7 @@ const reach = () => Math.min(40, Math.max(REACH, 24 / scene.s));
 
 function beginStroke(p) {
   stroke = new Stroke(board, tool, p.x, p.y, rand, reach());
+  $('toast').classList.add('dim'); // a note stays out of the way while the plane is down
   shaving = null;
   Object.assign(scene.plane, { tool, x: p.x, y: p.y, down: true, show: true, rideZ: null });
   scene.curl = null;
@@ -513,6 +514,7 @@ function endStroke() {
   if (off !== null) moveStroke({ x: off, y: stroke.y });
   const r = stroke.end();
   stroke = null;
+  $('toast').classList.remove('dim');
   sound.endCut(r.fullLength);
   if (scene.curl) scene.dropCurl(scene.curl);
   scene.curl = null;

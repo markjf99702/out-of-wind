@@ -170,6 +170,15 @@ try {
   }
   assert.equal((await peek(page)).strokes, 1);
   assert.equal(await page.textContent('#toast'), 'That was off the board. Swipe along the board itself to take a stroke.');
+  // While the plane is down, a note fades out of the way of the far end, and comes back after.
+  {
+    const a = await at(page, 250, 100), z = await at(page, 330, 100); // in the hollow: nothing cut
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: a.x, y: a.y }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: z.x, y: z.y }] });
+    assert.equal(await page.evaluate(() => document.getElementById('toast').classList.contains('dim')), true, 'faded during the stroke');
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    assert.equal(await page.evaluate(() => document.getElementById('toast').classList.contains('dim')), false, 'back after it');
+  }
 
   step('the straightedge shows light under the hollow, along and across');
   await page.click('#edgeBtn');
