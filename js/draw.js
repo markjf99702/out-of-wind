@@ -35,7 +35,6 @@ export class Scene {
     this.scribble = null; // pencil being drawn: { paths, t0, dur }
     this.mark = null; // a spot to point at: { x, y, kind }
     this.glow = 0; // the face lit up when it's finished
-    this.dirtyShade = true;
   }
 
   // ---------- layout ----------
@@ -68,7 +67,7 @@ export class Scene {
     this.lv0 = this.edgeV + eh + gap;
     this.eh = eh;
     this.lh = lh;
-    this.ppm = clamp(s * this.dpr, 0.6, 3.2);
+    this.ppm = clamp(s * this.dpr, 0.6, 1.6); // wood is soft: past this, more pixels only cost time
     this.buildLayers();
   }
 
@@ -96,43 +95,83 @@ export class Scene {
     this.roughMaskD = this.roughMask.getContext('2d').createImageData(b.NX, b.NY);
     this.pencilMask = canvas(b.NX, b.NY);
     this.pencilMaskD = this.pencilMask.getContext('2d').createImageData(b.NX, b.NY);
-    this.roughComp = canvas(w, h);
     this.pencilLines = canvas(w, h);
-    this.pencilComp = canvas(w, h);
     this.tearC = canvas(w, h);
+    this.scratch = canvas(w, h);
+    this.comp = canvas(w, h); // the board as it looks: everything above, put together
     this.shade = canvas(b.NX, b.NY);
     this.shadeData = this.shade.getContext('2d').createImageData(b.NX, b.NY);
     this.redrawTears();
     this.redrawPencil();
-    this.syncMasks();
     this.fit = b.fit();
-    this.dirtyShade = true;
+    this.dirtyAll = true;
+    this.bgKey = null;
   }
 
-  syncMasks() {
-    const b = this.board, { NX, NY } = b, rd = this.roughMaskD.data, pd = this.pencilMaskD.data;
-    for (let i = 0; i < NX; i++) for (let j = 0; j < NY; j++) {
+  // Something changed in cells i0..i1 along and j0..j1 across: redraw just that part next frame.
+  markDirty(i0, i1, j0, j1) {
+    const d = this.dirty;
+    this.dirty = d ? { i0: Math.min(d.i0, i0), i1: Math.max(d.i1, i1), j0: Math.min(d.j0, j0), j1: Math.max(d.j1, j1) } : { i0, i1, j0, j1 };
+  }
+
+  // Bring the board's look up to date: masks, the lamp's shading and the composite, for what changed.
+  refresh() {
+    const b = this.board, { NX, NY } = b;
+    let r;
+    if (this.dirtyAll) r = { i0: 0, i1: NX - 1, j0: 0, j1: NY - 1 };
+    else {
+      const d = this.dirty, m = 4; // the lamp's blur reaches a few cells
+      r = { i0: Math.max(0, d.i0 - m), i1: Math.min(NX - 1, d.i1 + m), j0: Math.max(0, d.j0 - m), j1: Math.min(NY - 1, d.j1 + m) };
+    }
+    this.dirty = null; this.dirtyAll = false;
+    // Masks.
+    const rd = this.roughMaskD.data, pd = this.pencilMaskD.data;
+    for (let i = r.i0; i <= r.i1; i++) for (let j = r.j0; j <= r.j1; j++) {
       const k = i * NY + j, o = (j * NX + i) * 4 + 3;
       rd[o] = b.cut[k] ? 0 : 255;
       pd[o] = b.pencil[k] ? 255 : 0;
     }
-    this.roughMask.getContext('2d').putImageData(this.roughMaskD, 0, 0);
-    this.pencilMask.getContext('2d').putImageData(this.pencilMaskD, 0, 0);
-    this.compose(this.roughComp, this.tex.rough, this.roughMask);
-    this.compose(this.pencilComp, this.pencilLines, this.pencilMask);
+    const rw = r.i1 - r.i0 + 1, rh = r.j1 - r.j0 + 1;
+    this.roughMask.getContext('2d').putImageData(this.roughMaskD, 0, 0, r.i0, r.j0, rw, rh);
+    this.pencilMask.getContext('2d').putImageData(this.pencilMaskD, 0, 0, r.i0, r.j0, rw, rh);
+    this.updateShade(r);
+    // The composite, in texture pixels, a cell wider all round for the smoothing.
+    const x0 = Math.max(0, Math.floor((r.i0 - 1) * this.cellW)), x1 = Math.min(this.tex.w, Math.ceil((r.i1 + 2) * this.cellW));
+    const y0 = Math.max(0, Math.floor((r.j0 - 1) * this.cellH)), y1 = Math.min(this.tex.h, Math.ceil((r.j1 + 2) * this.cellH));
+    this.composeRegion(x0, y0, x1 - x0, y1 - y0);
   }
 
-  // layer = image, shown only where the mask is.
-  compose(out, img, mask) {
-    const c = out.getContext('2d');
+  composeRegion(x, y, w, h) {
+    if (w <= 0 || h <= 0) return;
+    const c = this.comp.getContext('2d'), sc = this.scratch.getContext('2d');
+    const W = this.tex.w, H = this.tex.h;
+    const masked = (img, mask) => {
+      sc.save();
+      sc.beginPath(); sc.rect(x, y, w, h); sc.clip();
+      sc.globalCompositeOperation = 'copy';
+      sc.drawImage(img, 0, 0);
+      sc.globalCompositeOperation = 'destination-in';
+      sc.imageSmoothingEnabled = true; sc.imageSmoothingQuality = 'high';
+      sc.drawImage(mask, 0, 0, W, H);
+      sc.restore();
+      c.drawImage(this.scratch, x, y, w, h, x, y, w, h);
+    };
+    c.save();
+    c.beginPath(); c.rect(x, y, w, h); c.clip();
+    c.globalCompositeOperation = 'copy';
+    c.drawImage(this.tex.planed, x, y, w, h, x, y, w, h);
     c.globalCompositeOperation = 'source-over';
-    c.clearRect(0, 0, out.width, out.height);
-    c.drawImage(img, 0, 0);
-    c.globalCompositeOperation = 'destination-in';
-    c.imageSmoothingEnabled = true;
-    c.imageSmoothingQuality = 'high';
-    c.drawImage(mask, 0, 0, out.width, out.height);
+    masked(this.tex.rough, this.roughMask);
+    c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high';
+    c.globalCompositeOperation = 'soft-light';
+    c.drawImage(this.shade, 0, 0, W, H);
+    c.globalAlpha = 0.5;
+    c.drawImage(this.shade, 0, 0, W, H);
+    c.globalAlpha = 1;
     c.globalCompositeOperation = 'source-over';
+    c.drawImage(this.tearC, x, y, w, h, x, y, w, h);
+    masked(this.pencilLines, this.pencilMask);
+    c.restore();
   }
 
   cellRect(k) {
@@ -144,15 +183,16 @@ export class Scene {
 
   // Cells changed under the plane: cut (no longer rough, pencil gone), torn or cleaned.
   cellsChanged(list) {
-    const b = this.board;
-    let cleaned = false;
+    const b = this.board, NY = b.NY;
+    let cleaned = false, i0 = Infinity, i1 = -1, j0 = Infinity, j1 = -1;
     for (const k of list) {
+      const i = Math.floor(k / NY), j = k % NY;
+      if (i < i0) i0 = i; if (i > i1) i1 = i; if (j < j0) j0 = j; if (j > j1) j1 = j;
       if (b.torn[k]) { if (!this.tornShown[k]) { this.drawTear(k); this.tornShown[k] = 1; } }
       else if (this.tornShown[k]) cleaned = true;
     }
-    if (cleaned) this.redrawTears();
-    this.masksDirty = true;
-    this.dirtyShade = true;
+    if (cleaned) { this.redrawTears(); this.dirtyAll = true; }
+    else if (i1 >= 0) this.markDirty(i0, i1, j0, j1);
   }
 
   redrawTears() {
@@ -212,7 +252,7 @@ export class Scene {
     this.scribble = { paths: this.makeScribble(seed), t0: performance.now(), dur, seed };
     this.scribbleSeed = seed;
     this.pencilLines.getContext('2d').clearRect(0, 0, this.pencilLines.width, this.pencilLines.height);
-    this.masksDirty = true;
+    this.dirtyAll = true;
   }
 
   // The last scribble's lines; the pencil mask hides them wherever the plane has cut since.
@@ -245,16 +285,17 @@ export class Scene {
   }
 
   // ---------- shading ----------
-  // The lamp shows the board's shape, not its saw marks: shade a smoothed copy of the face.
-  updateShade() {
-    const b = this.board, { NX, NY } = b, d = this.shadeData.data, f = this.fit;
-    const top = this.smoothed(b.top, NX, NY);
-    for (let i = 0; i < NX; i++) {
+  // The lamp shows the board's shape, not its saw marks: shade a smoothed copy of the face,
+  // for the cells in r.
+  updateShade(r) {
+    const b = this.board, { NX, NY, top } = b, d = this.shadeData.data, f = this.fit;
+    const sm = this.smoothed(top, NX, NY, r);
+    for (let i = r.i0; i <= r.i1; i++) {
       const i0 = Math.max(0, i - 1), i1 = Math.min(NX - 1, i + 1);
-      for (let j = 0; j < NY; j++) {
+      for (let j = r.j0; j <= r.j1; j++) {
         const j0 = Math.max(0, j - 1), j1 = Math.min(NY - 1, j + 1);
-        const gx = (top[i1 * NY + j] - top[i0 * NY + j]) / ((i1 - i0) * b.dx) - f.b;
-        const gy = (top[i * NY + j1] - top[i * NY + j0]) / ((j1 - j0) * b.dy) - f.c;
+        const gx = (sm[i1 * NY + j] - sm[i0 * NY + j]) / ((i1 - i0) * b.dx) - f.b;
+        const gy = (sm[i * NY + j1] - sm[i * NY + j0]) / ((j1 - j0) * b.dy) - f.c;
         const nx = -gx * RELIEF, ny = -gy * RELIEF, l = Math.hypot(nx, ny, 1);
         const dot = (nx * LIGHT[0] + ny * LIGHT[1] + LIGHT[2]) / l - LIGHT[2];
         const o = (j * NX + i) * 4;
@@ -262,23 +303,25 @@ export class Scene {
         d[o] = v; d[o + 1] = v; d[o + 2] = v; d[o + 3] = 255;
       }
     }
-    // The shading canvas runs x across, y down, like the board in board space.
-    this.shade.getContext('2d').putImageData(this.shadeData, 0, 0);
-    this.dirtyShade = false;
+    this.shade.getContext('2d').putImageData(this.shadeData, 0, 0, r.i0, r.j0, r.i1 - r.i0 + 1, r.j1 - r.j0 + 1);
   }
 
-  refit() { this.fit = this.board.fit(); this.dirtyShade = true; }
+  refit() { this.fit = this.board.fit(); this.dirtyAll = true; }
 
-  // A blur three cells wide each way (binomial weights), along then across.
-  smoothed(src, NX, NY) {
+  // A blur three cells wide each way (binomial weights), along then across, good for the cells in
+  // r and one beyond (the slopes need their neighbours).
+  smoothed(src, NX, NY, r) {
     if (!this.tmpA || this.tmpA.length !== src.length) { this.tmpA = new Float32Array(src.length); this.tmpB = new Float32Array(src.length); }
     const a = this.tmpA, out = this.tmpB, w = [1, 6, 15, 20, 15, 6, 1];
-    for (let i = 0; i < NX; i++) for (let j = 0; j < NY; j++) {
+    const ia = Math.max(0, r.i0 - 1), ib = Math.min(NX - 1, r.i1 + 1);
+    const ja = Math.max(0, r.j0 - 4), jb = Math.min(NY - 1, r.j1 + 4);
+    for (let i = ia; i <= ib; i++) for (let j = ja; j <= jb; j++) {
       let s = 0, n = 0;
       for (let k = -3; k <= 3; k++) { const ii = i + k; if (ii < 0 || ii >= NX) continue; s += src[ii * NY + j] * w[k + 3]; n += w[k + 3]; }
       a[i * NY + j] = s / n;
     }
-    for (let i = 0; i < NX; i++) for (let j = 0; j < NY; j++) {
+    const jc = Math.max(0, r.j0 - 1), jd = Math.min(NY - 1, r.j1 + 1);
+    for (let i = ia; i <= ib; i++) for (let j = jc; j <= jd; j++) {
       let s = 0, n = 0;
       for (let k = -3; k <= 3; k++) { const jj = j + k; if (jj < 0 || jj >= NY) continue; s += a[i * NY + jj] * w[k + 3]; n += w[k + 3]; }
       out[i * NY + j] = s / n;
@@ -317,13 +360,24 @@ export class Scene {
   frame(now) {
     const ctx = this.ctx, b = this.board;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, this.cv.width, this.cv.height);
-    if (!b) return;
+    if (!b) { ctx.clearRect(0, 0, this.cv.width, this.cv.height); return; }
     const dpr = this.dpr;
+    // The bench, the board's shadow, the stop and the edges don't move: they're drawn once.
+    const bgKey = this.cv.width + 'x' + this.cv.height + ':' + this.texKey + ':' + this.portrait;
+    if (this.bgKey !== bgKey) { this.paintBackground(); this.bgKey = bgKey; }
+    ctx.drawImage(this.bg, 0, 0);
     if (this.portrait) ctx.setTransform(0, -dpr, dpr, 0, 0, this.BU * dpr);
     else ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (this.dirtyShade) this.updateShade();
-    this.drawBench(ctx);
+    if (this.scribble) {
+      // Pencil, drawn as it's scribbled.
+      const t = (now - this.scribble.t0) / this.scribble.dur;
+      const pc = this.pencilLines.getContext('2d');
+      pc.clearRect(0, 0, this.pencilLines.width, this.pencilLines.height);
+      this.strokePencil(pc, this.scribble.paths, Math.min(1, t));
+      if (t >= 1) this.scribble = null;
+      this.dirtyAll = true;
+    }
+    if (this.dirtyAll || this.dirty) this.refresh();
     this.drawBoard(ctx, now);
     this.drawPile(ctx);
     if (this.sticks && !this.plane.down) this.drawSticks(ctx);
@@ -334,8 +388,13 @@ export class Scene {
     this.drawInset(ctx);
   }
 
-  drawBench(ctx) {
-    const { BU, BV } = this;
+  paintBackground() {
+    const dpr = this.dpr;
+    this.bg = canvas(this.cv.width, this.cv.height);
+    const ctx = this.bg.getContext('2d');
+    if (this.portrait) ctx.setTransform(0, -dpr, dpr, 0, 0, this.BU * dpr);
+    else ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const { BU, BV, u0, v0, bw, bh } = this;
     // A beech bench top in strips, dark with oil and years.
     ctx.fillStyle = '#3b2c20';
     ctx.fillRect(0, 0, BU, BV);
@@ -347,18 +406,14 @@ export class Scene {
       ctx.fillRect(0, v + 37, BU, 1);
     }
     // Lamp light pooled on the board, falling off to the edges.
-    const g = ctx.createRadialGradient(this.u0 + this.bw * 0.55, this.v0 + this.bh * 0.4, 20, this.u0 + this.bw * 0.5, this.v0 + this.bh * 0.5, Math.max(BU, BV) * 0.75);
+    const g = ctx.createRadialGradient(u0 + bw * 0.55, v0 + bh * 0.4, 20, u0 + bw * 0.5, v0 + bh * 0.5, Math.max(BU, BV) * 0.75);
     g.addColorStop(0, 'rgba(255,214,150,.10)');
     g.addColorStop(1, 'rgba(0,0,0,.45)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, BU, BV);
-  }
-
-  drawBoard(ctx, now) {
-    const { u0, v0, bw, bh, s } = this, b = this.board;
-    // Shadow, the planing stop at the far end, and the end grain at the near end.
+    // The board's shadow, the planing stop at the far end, the end grain and the front edge.
     ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 5; ctx.shadowOffsetX = 2;
+    ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 14 * dpr; ctx.shadowOffsetY = 5 * dpr; ctx.shadowOffsetX = 2 * dpr;
     ctx.fillStyle = '#000';
     ctx.fillRect(u0, v0, bw, bh + 8);
     ctx.restore();
@@ -368,29 +423,13 @@ export class Scene {
     ctx.fillRect(u0 + bw + 2, v0 - 6, 2, bh + 12);
     ctx.drawImage(this.edges.end, u0 - 7, v0, 7, bh);
     ctx.drawImage(this.edges.edge, u0, this.edgeV, bw, this.eh);
+  }
 
+  drawBoard(ctx, now) {
+    const { u0, v0, bw, bh, s } = this;
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    if (this.masksDirty) { this.syncMasks(); this.masksDirty = false; }
-    ctx.drawImage(this.tex.planed, u0, v0, bw, bh);
-    ctx.drawImage(this.roughComp, u0, v0, bw, bh);
-    ctx.save();
-    ctx.globalCompositeOperation = 'soft-light';
-    ctx.drawImage(this.shade, u0, v0, bw, bh);
-    ctx.globalAlpha = 0.5;
-    ctx.drawImage(this.shade, u0, v0, bw, bh);
-    ctx.restore();
-    ctx.drawImage(this.tearC, u0, v0, bw, bh);
-    // Pencil, drawn as it's scribbled.
-    if (this.scribble) {
-      const t = (now - this.scribble.t0) / this.scribble.dur;
-      const pc = this.pencilLines.getContext('2d');
-      pc.clearRect(0, 0, this.pencilLines.width, this.pencilLines.height);
-      this.strokePencil(pc, this.scribble.paths, Math.min(1, t));
-      if (t >= 1) this.scribble = null;
-      this.compose(this.pencilComp, this.pencilLines, this.pencilMask);
-    }
-    ctx.drawImage(this.pencilComp, u0, v0, bw, bh);
+    ctx.drawImage(this.comp, u0, v0, bw, bh);
     if (this.glow > 0) {
       ctx.fillStyle = `rgba(255,240,205,${0.22 * this.glow})`;
       ctx.fillRect(u0, v0, bw, bh);

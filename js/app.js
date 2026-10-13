@@ -87,16 +87,19 @@ function paintPlank(btn, d) {
   if (!w) return;
   const dpr = Math.min(2, devicePixelRatio || 1);
   cvs.width = Math.round(w * dpr); cvs.height = Math.round(h * dpr);
+  // Only the middle band of the board shows on a plank, so only that is drawn, and not too finely.
+  const ppm = Math.min(0.8, (w * dpr) / d.L);
+  const bw = d.panel ? d.strips.reduce((a, x) => a + x.w, 0) : d.W;
+  const band = Math.min(bw, (d.L * h) / w);
   let t = thumbs.get(d.no);
   if (!t) {
-    const b = new Board(d);
-    t = woodTextures(b, Math.min(1.2, (w * dpr) / d.L));
+    t = woodTextures(new Board(d), ppm, [(bw - band) / 2, (bw + band) / 2]);
     thumbs.set(d.no, t);
   }
   const c = cvs.getContext('2d');
   // Planed if you've finished it, rough from the mill if not.
   const img = state.best[d.no] ? t.planed : t.rough;
-  const sh = Math.min(img.height, (img.width * cvs.height) / cvs.width);
+  const sh = Math.min(img.height, band * t.ppm);
   c.drawImage(img, 0, (img.height - sh) / 2, img.width, sh, 0, 0, cvs.width, cvs.height);
   const g = c.createLinearGradient(0, 0, 0, cvs.height);
   g.addColorStop(0, 'rgba(255,245,225,.12)'); g.addColorStop(1, 'rgba(0,0,0,.18)');
@@ -163,21 +166,28 @@ function openBoard(no, fresh = false) {
   document.title = boardName(def, WOODS) + ' · Out of Wind';
   $('boardName').textContent = 'No. ' + def.no;
   $('boardTitle').textContent = (def.panel ? 'Glued-up panel' : WOODS[def.wood].name) + ' · ' + def.title;
-  scene.setBoard(board);
   scene.sticks = false;
-  layout();
+  $('sticksBtn').setAttribute('aria-pressed', 'false');
   selectTool(tool);
   setMode('plane');
   updateHud();
   if (!resumed) showIntro();
-  kick();
+  // Drawing the wood takes a moment on a phone, so the card goes up first and the board after.
+  const opened = board;
+  setTimeout(() => {
+    if (board !== opened) return;
+    scene.setBoard(board);
+    layout();
+    syncLoupe();
+  }, 30);
 }
 
 function layout() {
-  const dpr = Math.min(2.5, devicePixelRatio || 1);
+  const dpr = Math.min(2, devicePixelRatio || 1); // sharp enough, and a third the pixels of 3x
   scene.resize(stage.clientWidth, stage.clientHeight, dpr);
   kick();
 }
+const ready = () => board && scene.board === board;
 new ResizeObserver(() => { if (!$('bench').hidden) layout(); }).observe(stage);
 
 // ---------- the intro card ----------
@@ -222,7 +232,7 @@ function syncLoupe() {
 }
 
 $('pencilBtn').addEventListener('click', () => {
-  if (!board || failed) return;
+  if (!ready() || failed) return;
   sound.wake();
   board.pencil.fill(1);
   const seed = (Date.now() & 0xffffff) ^ (strokes * 2654435761);
@@ -234,7 +244,7 @@ $('pencilBtn').addEventListener('click', () => {
 });
 
 $('edgeBtn').addEventListener('click', () => {
-  if (!board) return;
+  if (!ready()) return;
   sound.wake();
   if (mode === 'straightedge') { setMode('plane'); return; }
   setMode('straightedge');
@@ -244,7 +254,7 @@ $('edgeBtn').addEventListener('click', () => {
 });
 
 $('sticksBtn').addEventListener('click', () => {
-  if (!board) return;
+  if (!ready()) return;
   sound.wake();
   scene.sticks = !scene.sticks;
   $('sticksBtn').setAttribute('aria-pressed', String(scene.sticks));
@@ -285,7 +295,7 @@ const cv = $('cv');
 let activePointer = null;
 
 cv.addEventListener('pointerdown', e => {
-  if (!board || activePointer != null || !$('intro').hidden) return;
+  if (!ready() || activePointer != null || !$('intro').hidden) return;
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   sound.wake();
   activePointer = e.pointerId;
@@ -300,7 +310,7 @@ cv.addEventListener('pointermove', e => {
   if (e.pointerId === activePointer) {
     if (stroke) moveStroke(p);
     else if (edgeFrom && Math.hypot(p.x - edgeFrom.x, p.y - edgeFrom.y) > 12) layStraightedge(edgeFrom, p, true);
-  } else if (e.pointerType === 'mouse' && activePointer == null && mode === 'plane' && !failed) {
+  } else if (e.pointerType === 'mouse' && activePointer == null && mode === 'plane' && !failed && ready()) {
     // With a mouse, the plane hovers where it would go down.
     hover = true;
     Object.assign(scene.plane, { show: true, down: false, x: p.x, y: p.y, tool });
@@ -642,6 +652,7 @@ window.outOfWind = {
   board: () => board,
   scene,
   swipe(t, x0, x1, y) {
+    if (!ready()) { scene.setBoard(board); layout(); }
     selectTool(t); setMode('plane');
     beginStroke({ x: x0, y });
     const steps = Math.max(2, Math.ceil(Math.abs(x1 - x0) / 25));

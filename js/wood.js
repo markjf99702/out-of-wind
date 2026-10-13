@@ -9,7 +9,8 @@ import { noise2, rng } from './rng.js';
 const frac = v => v - Math.floor(v);
 const smooth = (a, b, v) => { const t = Math.min(1, Math.max(0, (v - a) / (b - a))); return t * t * (3 - 2 * t); };
 
-export function woodTextures(board, ppm) {
+// band: [y0, y1] in mm to draw only part of the width (the rack's thumbnails show a middle band).
+export function woodTextures(board, ppm, band = null) {
   const w = Math.max(2, Math.round(board.L * ppm)), h = Math.max(2, Math.round(board.W * ppm));
   const planed = canvas(w, h), rough = canvas(w, h);
   const pc = planed.getContext('2d'), rc = rough.getContext('2d');
@@ -26,7 +27,7 @@ export function woodTextures(board, ppm) {
       pithY: board.stripY0[k] + st.w * (0.2 + r() * 0.6), // where the heart of the tree was, across
       depth0: 18 + r() * 40, depthL: (r() - 0.5) * 40, // how far under the face it ran, near and far
       quarter: wood.rays > 0.5, // quartersawn: straight stripes and ray fleck
-      sapEdge: r() < 0.5 ? 0 : 1, streakY: board.stripY0[k] + st.w * (0.25 + r() * 0.5),
+      sapEdge: r() < 0.5 ? 0 : 1, streak0: board.stripY0[k] + st.w * (0.25 + r() * 0.5),
       n1: noise2(seed + k * 101 + 1, 140), n2: noise2(seed + k * 101 + 2, 26), n3: noise2(seed + k * 101 + 3, 9),
       fib: noise2(seed + k * 101 + 4, 3), pore: noise2(seed + k * 101 + 5, 1),
     };
@@ -35,8 +36,20 @@ export function woodTextures(board, ppm) {
   const fig = board.figure;
   const saw = noise2(seed + 909, 30), fuzz = noise2(seed + 910, 1.2), sawJit = noise2(seed + 911, 8);
   const sawPitch = 4 + r() * 1.5, sawSlant = (r() - 0.5) * 0.25;
+  // What depends only on how far along the board: worked out once per column, per tree.
+  for (const T of trees) {
+    T.depth = new Float32Array(w); T.sapWob = new Float32Array(w); T.streakY = new Float32Array(w); T.streakAmt = new Float32Array(w);
+    for (let px = 0; px < w; px++) {
+      const x = (px + 0.5) / ppm;
+      T.depth[px] = Math.max(2, T.depth0 + (T.depthL * x) / board.L + 6 * T.n1(x * 0.7 + 500, 0));
+      T.sapWob[px] = 5 * T.n1(x, 300);
+      T.streakY[px] = T.streak0 + 10 * T.n1(x, 900);
+      T.streakAmt[px] = 0.5 + 0.5 * T.n1(x * 2, 40);
+    }
+  }
+  const py0 = band ? Math.max(0, Math.floor(band[0] * ppm)) : 0, py1 = band ? Math.min(h, Math.ceil(band[1] * ppm)) : h;
 
-  for (let py = 0; py < h; py++) {
+  for (let py = py0; py < py1; py++) {
     const y = (py + 0.5) / ppm;
     let k = 0;
     while (k < strips.length - 1 && y >= board.stripY0[k + 1]) k++;
@@ -49,7 +62,7 @@ export function woodTextures(board, ppm) {
       let ring;
       if (T.quarter) ring = (yLocal + wob * 1.4) / wood.ring;
       else {
-        const dep = Math.max(2, T.depth0 + (T.depthL * x) / board.L + 6 * T.n1(x * 0.7 + 500, 0));
+        const dep = T.depth[px];
         ring = Math.sqrt((y - T.pithY) ** 2 + dep * dep) / wood.ring + wob / wood.ring;
       }
       let knotDark = 0;
@@ -84,11 +97,11 @@ export function woodTextures(board, ppm) {
       }
       if (T.sap) {
         const edge = T.sapEdge ? st.w - yLocal : yLocal;
-        const sp = smooth(st.w * 0.16 + 5 * T.n1(x, 300), st.w * 0.1 + 5 * T.n1(x, 300), edge);
+        const sp = smooth(st.w * 0.16 + T.sapWob[px], st.w * 0.1 + T.sapWob[px], edge);
         cr += (T.sap[0] - cr) * sp; cg += (T.sap[1] - cg) * sp; cb += (T.sap[2] - cb) * sp;
       }
       if (T.streak) {
-        const sk = smooth(14, 4, Math.abs(y - T.streakY - 10 * T.n1(x, 900))) * (0.5 + 0.5 * T.n1(x * 2, 40));
+        const sk = smooth(14, 4, Math.abs(y - T.streakY[px])) * T.streakAmt[px];
         cr += (T.streak[0] - cr) * sk * 0.7; cg += (T.streak[1] - cg) * sk * 0.7; cb += (T.streak[2] - cb) * sk * 0.7;
       }
       if (knotDark) {
