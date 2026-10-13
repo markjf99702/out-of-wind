@@ -289,6 +289,8 @@ try {
   assert.equal(await page.textContent('#resultStamp'), 'Cull');
   assert.equal(await page.textContent('#resultTitle'), 'Too thin for the tabletop');
   assert.ok(await page.isHidden('#nextBtn'));
+  assert.equal(await page.getAttribute('#againBtn', 'class'), 'go', 'starting again is the main button');
+  assert.equal(await page.evaluate(() => document.activeElement.id), 'againBtn', 'and it has the focus');
   await page.click('#againBtn');
   p = await peek(page);
   assert.equal(p.failed, false);

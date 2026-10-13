@@ -769,6 +769,7 @@ function showResult(result) {
   $('nextBtn').hidden = !next && !allDone();
   $('nextBtn').textContent = next ? 'Next: No. ' + next.no : 'See the tabletop';
   $('againBtn').textContent = 'Plane it again';
+  $('againBtn').className = 'alt';
   $('keepBtn').hidden = false;
   $('keepBtn').textContent = result.torn ? 'Plane out the tear-out' : 'Keep planing';
   if (!next) $('resultNote').textContent += ' That’s the tabletop: every board done.';
@@ -784,6 +785,7 @@ function showFailed() {
   $('resultNote').textContent = `It went through the gauge line toward the ${where}: ${U.small(board.tmin - th.t)} under ${U.line(board.tmin)}. A plane takes the high spots first; take only those.`;
   $('nextBtn').hidden = true;
   $('againBtn').textContent = 'Start it again';
+  $('againBtn').className = 'go'; // the only way on from a cull
   $('keepBtn').hidden = true;
   openSheet('result');
 }
@@ -873,7 +875,7 @@ function persist() {
 }
 
 // ---------- sheets and settings ----------
-function openSheet(id) { closeSheets(); $(id).hidden = false; const f = $(id).querySelector('button.go, button.row, button'); if (f) f.focus({ preventScroll: true }); }
+function openSheet(id) { closeSheets(); $(id).hidden = false; const f = $(id).querySelector('button.go:not([hidden]), button.row:not([hidden]), button:not([hidden])'); if (f) f.focus({ preventScroll: true }); }
 function closeSheets() { for (const id of ['intro', 'result', 'menu', 'how', 'table']) $(id).hidden = true; }
 
 $('backBtn').addEventListener('click', () => go(0));
