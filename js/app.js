@@ -381,12 +381,34 @@ function endStroke() {
   scene.refit();
   if (r.counts && !r.cells) hint('nocut', 'Nothing to cut there: the sole is riding on higher wood. Try beside it, or another plane.');
   else if (r.fullLength && r.fullWidth) toast('A full-length shaving.');
+  else if (r.counts) coach(r);
   if (scene.straight) layStraightedge({ x: scene.straight.x0, y: scene.straight.y0 }, { x: scene.straight.x1, y: scene.straight.y1 }, true);
   syncLoupe();
   check();
   updateHud();
   persist();
   kick();
+}
+
+// What the first boards say as you go, once each.
+function coach(r) {
+  const no = def.no, rough = board.roughLeft(), fl = board.flatness();
+  if (no === 1 && strokes === 1 && tool === 'jointer') hint('c1a', 'The jointer only cut where the board stands high. Keep taking full-length strokes, lane by lane, until the pencil’s gone.');
+  else if (no === 1 && strokes === 1) hint('c1b', 'Try the jointer: long strokes, the whole length of the board.');
+  else if (no <= 2 && rough && fl < 0.3 && rough < board.cut.length * 0.06) hint('edges', 'Nearly flat. Let the plane hang off the edges to reach the last rough strips.');
+  else if (no === 3 && strokes === 4 && Math.abs(board.wind().wind) > 0.3) hint('c3', 'Still in wind? Straight full-length strokes can’t take out twist. Work the two high corners.');
+  if (fl <= FLAT && rough && rough < board.cut.length * 0.03) toast('Flat, but rough-sawn spots are left ' + roughWhere() + '.', 3600);
+}
+
+// Where the last rough cells are, in words: "near the far end, along the left edge".
+function roughWhere() {
+  let sx = 0, sy = 0, n = 0;
+  for (let k = 0; k < board.cut.length; k++) if (!board.cut[k]) { sx += Math.floor(k / board.NY); sy += k % board.NY; n++; }
+  if (!n) return '';
+  const fx = sx / n / board.NX, fy = sy / n / board.NY;
+  const along = fx < 0.33 ? 'near the near end' : fx > 0.67 ? 'near the far end' : 'in the middle';
+  const across = fy < 0.25 ? ', along the left edge' : fy > 0.75 ? ', along the right edge' : '';
+  return along + across;
 }
 
 // ---------- done, or too thin ----------
@@ -579,6 +601,14 @@ function updateSettings() {
   $('menuSoundBtn').textContent = sound.soundOn() ? 'Sound off' : 'Sound on';
 }
 document.addEventListener('keydown', e => {
+  if (!$('bench').hidden && $('intro').hidden && $('result').hidden && $('menu').hidden && $('how').hidden && !e.metaKey && !e.ctrlKey && !e.altKey) {
+    const k = e.key.toLowerCase();
+    const plane = { 1: 'jack', 2: 'jointer', 3: 'smoother' }[k];
+    if (plane) { selectTool(plane); setMode('plane'); return; }
+    if (k === 'p') { $('pencilBtn').click(); return; }
+    if (k === 'e') { $('edgeBtn').click(); return; }
+    if (k === 'w') { $('sticksBtn').click(); return; }
+  }
   if (e.key === 'Escape') {
     if (!$('menu').hidden || !$('how').hidden) closeSheets();
     else if (!$('bench').hidden && $('result').hidden && $('intro').hidden) { updateSettings(); openSheet('menu'); }

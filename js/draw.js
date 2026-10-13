@@ -495,18 +495,31 @@ export class Scene {
       const rot = f.rot0 + f.spin * t;
       drawLoose(ctx, f, u, v, rot, this.s);
       if (t < 1) keep.push(f);
-      else if (!f.chip || Math.random() < 0.5) { this.pile.push({ ...f, u: f.to.u, v: f.to.v, rot }); if (this.pile.length > 90) this.pile.shift(); }
+      else if (!f.chip || Math.random() < 0.5) { this.pile.push({ ...f, u: f.to.u, v: f.to.v, rot }); if (this.pile.length > 140) { this.pile.splice(0, 40); this.pileDrawn = Infinity; } }
     }
     this.flying = keep;
   }
 
+  // Shavings that have landed are drawn once into their own layer.
   drawPile(ctx) {
-    const n = this.pile.length;
-    this.pile.forEach((f, k) => {
-      ctx.globalAlpha = k < n - 60 ? 0.55 : 1; // the oldest settle into the background
-      drawLoose(ctx, f, f.u, f.v, f.rot, this.s);
-    });
-    ctx.globalAlpha = 1;
+    const dpr = this.dpr, W = Math.round(this.BU * dpr), H = Math.round(this.BV * dpr);
+    if (!this.pileC || this.pileC.width !== W || this.pileC.height !== H || this.pileDrawn > this.pile.length) {
+      this.pileC = canvas(W, H);
+      this.pileDrawn = 0;
+    }
+    if (this.pileDrawn < this.pile.length) {
+      const pc = this.pileC.getContext('2d');
+      pc.setTransform(dpr, 0, 0, dpr, 0, 0);
+      for (let k = this.pileDrawn; k < this.pile.length; k++) {
+        const f = this.pile[k];
+        pc.save();
+        pc.shadowColor = 'rgba(0,0,0,.4)'; pc.shadowBlur = 3 * dpr; pc.shadowOffsetY = 1.5 * dpr;
+        drawLoose(pc, f, f.u, f.v, f.rot, this.s);
+        pc.restore();
+      }
+      this.pileDrawn = this.pile.length;
+    }
+    ctx.drawImage(this.pileC, 0, 0, this.BU, this.BV);
   }
 
   // ---------- checks ----------
@@ -831,8 +844,8 @@ function drawCurl(ctx, t, curl, now) {
   ctx.restore();
 }
 
-// A loose shaving or chip lying on (or flying to) the bench.
-// A shaving is a loose roll with a tail of ribbon; its size comes from how long and wide it was cut.
+// A loose shaving or chip lying on (or flying to) the bench. A shaving is drawn the way you'd draw
+// one: a curl of pale ribbon with a darker edge, bigger and looser the longer it ran.
 function drawLoose(ctx, f, u, v, rot, s) {
   const c = f.color;
   ctx.save();
@@ -841,38 +854,38 @@ function drawLoose(ctx, f, u, v, rot, s) {
   if (f.chip) {
     ctx.fillStyle = `rgb(${c[0] * 0.85 | 0},${c[1] * 0.8 | 0},${c[2] * 0.75 | 0})`;
     ctx.beginPath();
-    ctx.moveTo(-f.len * s * 0.5, 0); ctx.lineTo(0, -f.w * s * 0.3); ctx.lineTo(f.len * s * 0.5, f.w * s * 0.1); ctx.lineTo(0, f.w * s * 0.3);
+    ctx.moveTo(-f.len * s * 0.5, 0); ctx.lineTo(0, -f.w * s * 0.25); ctx.lineTo(f.len * s * 0.5, f.w * s * 0.08); ctx.lineTo(0, f.w * s * 0.25);
     ctx.closePath(); ctx.fill();
     ctx.restore();
     return;
   }
-  const w = clamp(f.w * s, 4, 70); // across the roll
-  const d = clamp((3 + Math.sqrt(f.len) * 0.42) * s, 3, 22); // the roll's diameter
-  const tail = clamp(f.len * s * 0.06, 0, 46);
-  const light = `rgba(${Math.min(255, c[0] * 1.1) | 0},${Math.min(255, c[1] * 1.08) | 0},${Math.min(255, c[2] * 1.04) | 0},.92)`;
-  const dark = `rgba(${c[0] * 0.62 | 0},${c[1] * 0.56 | 0},${c[2] * 0.5 | 0},.92)`;
-  ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 3; ctx.shadowOffsetY = 1.5;
-  // The tail: ribbon unrolling from the roll, thin enough to let the light through.
-  if (tail > 2) {
-    ctx.fillStyle = `rgba(${Math.min(255, c[0] * 1.06) | 0},${Math.min(255, c[1] * 1.04) | 0},${c[2] | 0},.7)`;
+  const seed = f.seed ?? (f.seed = Math.random() * 1000);
+  const scale = 0.55 + s * 0.5;
+  const R = clamp(5 + Math.sqrt(f.len) * 0.42, 5, 17) * scale; // outer radius of the curl
+  const turns = clamp(1.1 + f.len / 300, 1.1, 2.4);
+  const lw = clamp(f.w * s * 0.1, 2.2, 6) * (0.8 + 0.2 * scale); // the ribbon, seen mostly edge-on
+  const tail = clamp(f.len * s * 0.04, 0, 22);
+  const squash = 0.75 + (seed % 0.25);
+  const path = () => {
     ctx.beginPath();
-    ctx.moveTo(d * 0.3, -w / 2);
-    ctx.quadraticCurveTo(d * 0.3 + tail * 0.6, -w / 2 - tail * 0.15, d * 0.3 + tail, -w / 2 + w * 0.1);
-    ctx.lineTo(d * 0.3 + tail, w / 2 - w * 0.05);
-    ctx.quadraticCurveTo(d * 0.3 + tail * 0.6, w / 2 + tail * 0.1, d * 0.3, w / 2);
-    ctx.closePath();
-    ctx.fill();
-  }
-  // The roll, lit across its curve.
-  const g = ctx.createLinearGradient(-d / 2, 0, d / 2, 0);
-  g.addColorStop(0, dark); g.addColorStop(0.42, light); g.addColorStop(1, dark);
-  ctx.fillStyle = g;
-  roundRect(ctx, -d / 2, -w / 2, d, w, d / 2);
-  ctx.fill();
-  ctx.shadowColor = 'transparent';
-  ctx.strokeStyle = `rgba(${c[0] * 0.5 | 0},${c[1] * 0.45 | 0},${c[2] * 0.4 | 0},.45)`;
-  ctx.lineWidth = 0.7;
-  ctx.beginPath(); ctx.moveTo(-d * 0.12, -w / 2 + 1); ctx.lineTo(-d * 0.12, w / 2 - 1); ctx.stroke();
+    const n = Math.round(turns * 28);
+    for (let k = 0; k <= n; k++) {
+      const t = k / n, a = t * turns * Math.PI * 2;
+      const r = R * (0.2 + 0.8 * t);
+      const x = Math.cos(a) * r, y = Math.sin(a) * r * squash;
+      k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    // the end that ran out straight before it curled
+    const a = turns * Math.PI * 2;
+    ctx.lineTo(Math.cos(a) * R + tail, Math.sin(a) * R * squash + tail * 0.25);
+  };
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.strokeStyle = `rgba(${c[0] * 0.55 | 0},${c[1] * 0.48 | 0},${c[2] * 0.4 | 0},.85)`;
+  ctx.lineWidth = lw + 1.6;
+  path(); ctx.stroke();
+  ctx.strokeStyle = `rgba(${Math.min(255, c[0] * 1.08 + 10) | 0},${Math.min(255, c[1] * 1.06 + 10) | 0},${Math.min(255, c[2] * 1.02 + 6) | 0},.97)`;
+  ctx.lineWidth = lw;
+  path(); ctx.stroke();
   ctx.restore();
 }
 
