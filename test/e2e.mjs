@@ -82,6 +82,8 @@ try {
   assert.match(await page.textContent('#introFacts'), /Keep0\.\d{3}″ or more/);
   await page.click('#introGo');
   assert.ok(await page.isHidden('#intro'));
+  assert.equal(await page.textContent('#toast'), 'Swipe along the board, end to end, to take a stroke.', 'the first board shows what a stroke is');
+  assert.ok(await page.evaluate(() => !!window.outOfWind.scene.ghost));
   let p = await peek(page);
   assert.equal(p.no, 1);
   assert.equal(p.strokes, 0);

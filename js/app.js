@@ -218,7 +218,15 @@ function showIntro() {
   $('introNote').textContent = def.note || wood.note;
   openSheet('intro');
 }
-$('introGo').addEventListener('click', () => { sound.wake(); ready(); closeSheets(); });
+$('introGo').addEventListener('click', () => {
+  sound.wake(); ready(); closeSheets();
+  // The first time on the bench: show what a stroke is.
+  if (def.no === 1 && !state.seen.swipe && !strokes) {
+    scene.ghost = { t0: performance.now(), y: board.W / 2, tool };
+    hint('swipe', 'Swipe along the board, end to end, to take a stroke.');
+    kick();
+  }
+});
 
 // ---------- tools ----------
 document.querySelectorAll('.tool[data-tool]').forEach(b => b.addEventListener('click', () => {
@@ -685,7 +693,7 @@ function loop(now) {
   raf = 0;
   if ($('bench').hidden) return;
   scene.frame(now);
-  if (stroke || scene.flying.length || scene.scribble || scene.glow > 0 || scene.mark) kick();
+  if (stroke || scene.flying.length || scene.scribble || scene.glow > 0 || scene.mark || scene.ghost) kick();
 }
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }

@@ -36,6 +36,7 @@ export class Scene {
     this.scribble = null; // pencil being drawn: { paths, t0, dur }
     this.mark = null; // a spot to point at: { x, y, kind }
     this.glow = 0; // the face lit up when it's finished
+    this.ghost = null; // a plane sliding along the board on its own, to show a stroke: { t0, y, tool }
   }
 
   // ---------- layout ----------
@@ -78,7 +79,7 @@ export class Scene {
   // ---------- board layers ----------
   setBoard(board) {
     this.board = board;
-    this.pile = []; this.flying = []; this.curl = null; this.straight = null; this.mark = null; this.glow = 0;
+    this.pile = []; this.flying = []; this.curl = null; this.straight = null; this.mark = null; this.glow = 0; this.ghost = null;
     this.loupe = { mode: 'plane', y: board.W / 2, line: null };
     this.texKey = null;
     if (this.W) this.layout();
@@ -386,6 +387,7 @@ export class Scene {
     this.drawPile(ctx);
     if (this.sticks && !this.plane.down) this.drawSticks(ctx);
     if (this.straight && this.loupe.mode === 'straightedge') this.drawStraightedge(ctx);
+    if (this.ghost && !this.plane.down) this.drawGhost(ctx, now);
     this.drawPlane(ctx, now);
     this.drawFlying(ctx, now);
     this.drawLoupe(ctx);
@@ -502,6 +504,21 @@ export class Scene {
     drawPlaneBody(ctx, t);
     ctx.shadowColor = 'transparent';
     if (this.curl && p.down) drawCurl(ctx, t, this.curl, now);
+    ctx.restore();
+  }
+
+  // The first board shows what a stroke is: a faint plane glides from the near end to the far end.
+  drawGhost(ctx, now) {
+    const g = this.ghost, b = this.board, s = this.s, dur = 1800, t = (now - g.t0) / dur;
+    if (t >= 1.3) { this.ghost = null; return; }
+    const e = 0.5 - 0.5 * Math.cos(Math.PI * clamp(t, 0, 1));
+    const x = -60 + (b.L + 120) * e;
+    const fade = t < 0.12 ? t / 0.12 : t > 1 ? Math.max(0, 1 - (t - 1) / 0.3) : 1;
+    ctx.save();
+    ctx.translate(this.u0 + x * s, this.v0 + g.y * s);
+    ctx.scale(s, s);
+    ctx.globalAlpha = 0.55 * fade;
+    drawPlaneBody(ctx, PLANES[g.tool]);
     ctx.restore();
   }
 
