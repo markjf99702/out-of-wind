@@ -265,6 +265,17 @@ test('how flat a face is reads finer than the aim, and never reads as the aim un
   assert.equal(U.flat(0.1504, 1), '0.151 mm');
 });
 
+test('a nearly flat face knows where it stands highest', () => {
+  const b = plain({ humps: [[0.85, 0.85, 40, 25, 0.08]] }); // a patch by the far right corner
+  const h = b.highest();
+  assert.ok(h.x > b.L * 2 / 3 && h.y > b.W * 0.7, `toward the far end, by the right edge: ${h.x.toFixed(0)}, ${h.y.toFixed(0)}`);
+  const f = b.fit(), k = h.i * b.NY + h.j;
+  assert.ok(Math.abs(h.h - (b.top[k] - (f.a + f.b * (h.x - b.L / 2) + f.c * (h.y - b.W / 2)))) < 1e-6, 'its height above the best plane');
+  b.torn[k] = 1;
+  const t = b.highest();
+  assert.notEqual(t.i * b.NY + t.j, k, 'tear-out is left out, as it is from flatness');
+});
+
 test('flatness and thickness', () => {
   const b = plain({});
   assert.ok(b.flatness() < 1e-3);

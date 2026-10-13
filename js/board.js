@@ -176,6 +176,24 @@ export class Board {
     return { bow: q1 ? s1 / q1 : 0, cup: q2 ? s2 / q2 : 0, twist: q3 ? s3 / q3 : 0 };
   }
 
+  // Where the face stands highest above its best plane (torn spots left out): the spot that keeps a
+  // nearly flat face from being flat, since a plane can only take wood away.
+  highest(f = this.fit()) {
+    const { NX, NY, top, torn } = this;
+    let h = -Infinity, at = 0;
+    for (let i = 0; i < NX; i++) {
+      const pz = f.a + f.b * (this.xOf(i) - this.L / 2);
+      for (let j = 0; j < NY; j++) {
+        const k = i * NY + j;
+        if (torn[k]) continue;
+        const v = top[k] - pz - f.c * (this.yOf(j) - this.W / 2);
+        if (v > h) { h = v; at = k; }
+      }
+    }
+    const i = Math.floor(at / NY), j = at % NY;
+    return { i, j, x: this.xOf(i), y: this.yOf(j), h };
+  }
+
   // The thinnest the board is anywhere (mm), and where.
   thinnest() {
     let t = Infinity, at = 0;

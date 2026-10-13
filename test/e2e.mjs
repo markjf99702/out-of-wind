@@ -359,6 +359,47 @@ try {
   await ctx.setOffline(false);
   await ctx.close();
 
+  // ---------- the last few thou ----------
+  {
+    step('nearly flat, the bench says where the face stands highest, and a stroke there finishes it');
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US' });
+    const pg = await c.newPage();
+    watch(pg, 'endgame');
+    const cd = await c.newCDPSession(pg);
+    const g = (marks, strokes) => ({ marks, strokes, thick: 19.9, torn: 0, flat: 0.12 });
+    await pg.addInitScript(s => { if (location.protocol === 'http:' && !localStorage.getItem('out-of-wind.v1')) localStorage.setItem('out-of-wind.v1', JSON.stringify(s)); },
+      { v: 1, best: { 1: g(4, 25), 2: g(3, 30) }, benches: {}, attempts: {}, seen: { swipe: 1, stroke: 1, pencil: 1 }, unit: 'in', sound: false });
+    await pg.goto(base + '#3');
+    await pg.click('#introGo');
+    // Board 3 planed flat by the solver, then a patch by the far right corner left a few thou proud.
+    await pg.evaluate(async () => {
+      const { solve } = await import('./js/solver.js');
+      const { Board } = await import('./js/board.js');
+      const { BOARDS } = await import('./js/boards.js');
+      const b = window.outOfWind.board(), copy = new Board(BOARDS[2]);
+      solve(copy);
+      b.load(copy.save());
+      for (let i = 0; i < b.NX; i++) for (let j = 0; j < b.NY; j++) {
+        const d = Math.hypot(b.xOf(i) - 0.85 * b.L, (b.yOf(j) - 0.85 * b.W) * 1.5);
+        if (d < 40) b.top[i * b.NY + j] += 0.09 * (1 - d / 40);
+      }
+      window.outOfWind.scene.refit();
+    });
+    const { L, W } = await pg.evaluate(() => ({ L: window.outOfWind.board().L, W: window.outOfWind.board().W }));
+    await pg.click('[data-tool="smoother"]');
+    await touchSwipe(pg, cd, -15, L / 3, 24); // the sticks line up now, and say so first
+    assert.equal(await pg.textContent('#toast'), 'The winding sticks line up: out of wind.');
+    await touchSwipe(pg, cd, L / 3, L / 2, 24);
+    let q = await peek(pg);
+    assert.ok(q.flat > 0.15 && q.flat <= 0.21 && !q.done, 'nearly flat: ' + q.flat);
+    assert.equal(await pg.textContent('#toast'), 'Nearly flat. It stands highest toward the far end, by the right edge: a stroke there.');
+    await touchSwipe(pg, cd, 0.55 * L, L + 20, W - 25);
+    q = await peek(pg);
+    assert.equal(q.done, true, 'a stroke where it stands highest finishes it: ' + q.flat);
+    await pg.waitForSelector('#result', { state: 'visible', timeout: 10000 });
+    await c.close();
+  }
+
   // ---------- Back, the way Android's gesture does it ----------
   {
     step('Back on a board goes to the rack, Back on the rack leaves, and the rack offers the board part-way through');

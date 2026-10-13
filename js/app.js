@@ -35,6 +35,7 @@ let stuckAt = -99; // the stroke when the bench last said what shape is left
 let fullSaid = false; // the first full-length shaving on a board gets a word; the rest just the sound
 let missSaid = false; // the first stroke on a board that cuts nothing gets the long explanation
 let endsSaid = false; // starting well onto the board, once a board
+let nearSaid = null; // where the bench last said a nearly flat face stands highest
 
 // ---------- the rack ----------
 const unlocked = no => no === 1 || !!state.best[no - 1];
@@ -212,7 +213,7 @@ function openBoard(no, fresh = false) {
     saved = null;
   }
   strokes = 0; finished = false; failed = false; keepGoing = false; settling = false; mode = 'plane';
-  flatLog = []; stuckAt = -99; fullSaid = false; missSaid = false; endsSaid = false;
+  flatLog = []; stuckAt = -99; fullSaid = false; missSaid = false; endsSaid = false; nearSaid = null;
   rand = rng(def.seed * 7919 + (state.attempts[no] || 0) * 104729 + 1);
   scene.scribbleSeed = null;
   let resumed = false;
@@ -526,6 +527,7 @@ function endStroke() {
     else if (windWas >= WIND * 1.5 && lined) { toast('The winding sticks line up: out of wind.'); sound.tock(); }
     else if (gapBefore > 0.08 && scene.straight.res.gap < 0.04) { toast('No light under the straightedge.'); sound.tink(); }
     else if (endsLeft(r)) { /* said to start off the end */ }
+    else if (nearly()) { /* said where it stands highest */ }
     else if (stuck()) { /* said what's left */ }
     else if (r.fullLength && r.fullWidth && !fullSaid) { fullSaid = true; toast('A full-length shaving.'); }
     else coach(r);
@@ -582,6 +584,26 @@ function coach(r) {
   if (fl <= FLAT && rough && rough < board.cut.length * 0.03) toast('Flat, but rough-sawn spots are left ' + roughWhere() + '.', 3600);
 }
 
+// Nearly flat and planed all over: the last few thou decide the board, and hunting for them with the
+// straightedge isn't the game, so the bench says where the face stands highest after every stroke.
+function nearly() {
+  const fl = board.flatness();
+  if (board.roughLeft() || fl <= FLAT || fl > 1.4 * FLAT) return false;
+  const h = board.highest(), where = placeWords(h.x, h.y);
+  toast(where === nearSaid ? `Still highest ${where}.`
+    : `Nearly flat. It stands highest ${where}: a stroke there${tool === 'smoother' ? '' : ' with the smoother'}.`, 4200);
+  nearSaid = where;
+  return true;
+}
+
+// A spot on the board in words, standing at the near end: "toward the far end, by the right edge".
+function placeWords(x, y) {
+  const fx = x / board.L, fy = y / board.W;
+  const along = fx < 1 / 3 ? 'toward the near end' : fx > 2 / 3 ? 'toward the far end' : 'midway along';
+  const across = fy < 0.3 ? 'by the left edge' : fy > 0.7 ? 'by the right edge' : 'down the middle';
+  return along === 'midway along' && across === 'down the middle' ? 'in the middle of the board' : along + ', ' + across;
+}
+
 // When eight strokes haven't brought the face any nearer flat, say what shape is left and what takes
 // it out; and again ten strokes later if it still hasn't moved.
 function stuck() {
@@ -599,22 +621,26 @@ function stuck() {
       : 'Still high along the middle. Plane the middle lanes until a straightedge laid across stops rocking.';
   } else {
     text = sh.bow > 0 ? 'Still hollow. Keep taking full-length jointer strokes: it rides on the high ends.'
-      : 'Still crowned. Full-length strokes just follow it down: take short strokes on the high middle and leave the ends.';
+      : 'Still crowned. Full-length strokes just follow it down: take short strokes on the high middle and leave the ends.'
+        + (turnsMidway() ? ' The grain turns around there, so take them with the smoother: set fine, it gets through without tearing.' : '');
   }
   stuckAt = strokes;
   toast(text, 6500);
   return true;
 }
 
-// Where the last rough cells are, in words: "near the far end, along the left edge".
+// Where the last rough cells are, in words: "toward the far end, by the left edge".
 function roughWhere() {
   let sx = 0, sy = 0, n = 0;
-  for (let k = 0; k < board.cut.length; k++) if (!board.cut[k]) { sx += Math.floor(k / board.NY); sy += k % board.NY; n++; }
-  if (!n) return '';
-  const fx = sx / n / board.NX, fy = sy / n / board.NY;
-  const along = fx < 0.33 ? 'near the near end' : fx > 0.67 ? 'near the far end' : 'in the middle';
-  const across = fy < 0.25 ? ', along the left edge' : fy > 0.75 ? ', along the right edge' : '';
-  return along + across;
+  for (let k = 0; k < board.cut.length; k++) if (!board.cut[k]) { sx += board.xOf(Math.floor(k / board.NY)); sy += board.yOf(k % board.NY); n++; }
+  return n ? placeWords(sx / n, sy / n) : '';
+}
+
+// Does the grain turn around somewhere in the middle half of the board, along its centre?
+function turnsMidway() {
+  const j = board.NY >> 1, a = Math.floor(board.NX / 4), z = Math.ceil((3 * board.NX) / 4);
+  for (let i = a + 1; i < z; i++) if (board.grain[i * board.NY + j] !== board.grain[a * board.NY + j]) return true;
+  return false;
 }
 
 // ---------- done, or too thin ----------
