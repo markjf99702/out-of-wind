@@ -6,7 +6,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Board, restLine, FLAT, TABLETOP } from '../js/board.js';
 import { Stroke, PLANES, stroke } from '../js/plane.js';
-import { BOARDS, parFor } from '../js/boards.js';
+import { BOARDS, parFor, keepFor } from '../js/boards.js';
 import { WOODS } from '../js/woods.js';
 import { solve, aim } from '../js/solver.js';
 import { rng } from '../js/rng.js';
@@ -162,6 +162,8 @@ test('every board is planned: sized for the tabletop with its spare', () => {
     const best = aim(b).t;
     assert.ok(best >= def.best - 0.02, `board ${def.no}: the best plane leaves ${best.toFixed(2)}, short of ${def.best}`);
     assert.ok(b.thinnest().t > TABLETOP + def.spare, 'starts thicker than it needs');
+    const keep = keepFor(def);
+    assert.ok(keep > TABLETOP + 0.2 && keep < def.best - 0.2, `board ${def.no}: the thickness mark (${keep}) sits between the line and the solver's finish`);
   });
 });
 
@@ -171,6 +173,8 @@ test('the solver flattens board 1 at its par and its best', () => {
   assert.equal(r.done, true);
   assert.equal(parFor(r.par), BOARDS[0].par);
   assert.ok(Math.abs(r.thinnest - BOARDS[0].best) < 0.02, 'thinnest ' + r.thinnest);
+  assert.ok(r.thinnest >= keepFor(BOARDS[0]), 'the solver keeps the thickness mark');
+  assert.ok(r.par < BOARDS[0].par, 'par leaves a person room');
   assert.ok(b.flatness() <= FLAT);
 });
 

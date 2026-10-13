@@ -147,7 +147,9 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brass); outline
 }
 .card h2 { margin: 0; font: 400 28px/1.1 var(--disp); }
 .card .kicker { margin: 0 0 4px; font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--paper-ink2); }
-.card .facts { margin: 8px 0 0; color: var(--paper-ink2); font-size: 15px; }
+.card .facts { margin: 10px 0 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 15px; line-height: 1.35; }
+.card .facts dt { color: var(--paper-ink2); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; padding-top: 2px; }
+.card .facts dd { margin: 0; }
 .card .note { margin: 12px 0 0; font-size: 17px; line-height: 1.45; }
 .card .go { margin-top: 18px; }
 .card .alt {

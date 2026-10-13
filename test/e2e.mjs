@@ -78,7 +78,8 @@ try {
   step('board 1: the intro, then the bench');
   await page.click('.plank[data-no="1"]');
   await page.waitForSelector('#intro', { state: 'visible' });
-  assert.match(await page.textContent('#introFacts'), /It has to finish at ¾″/);
+  assert.match(await page.textContent('#introFacts'), /Finish¾″ at the least/);
+  assert.match(await page.textContent('#introFacts'), /Keep0\.\d{3}″ or more/);
   await page.click('#introGo');
   assert.ok(await page.isHidden('#intro'));
   let p = await peek(page);

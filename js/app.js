@@ -3,7 +3,7 @@
 
 import { Board, FLAT } from './board.js';
 import { Stroke, PLANES } from './plane.js';
-import { BOARDS, boardName } from './boards.js';
+import { BOARDS, boardName, keepFor } from './boards.js';
 import { WOODS, rgb } from './woods.js';
 import { Scene } from './draw.js';
 import { woodTextures } from './wood.js';
@@ -207,7 +207,13 @@ function showIntro() {
   const wood = def.panel ? null : WOODS[def.wood];
   $('introKicker').textContent = 'No. ' + def.no + ' · ' + def.title;
   $('introTitle').textContent = def.panel ? 'Walnut, maple and cherry' : wood.name;
-  $('introFacts').textContent = `${U.size(def.L, board.W)}, ${U.thick(board.thinnest().t)} rough. It has to finish at ${U.line(board.tmin)}: the tabletop’s thickness. Par is ${def.par} strokes.`;
+  const facts = [
+    ['Rough', `${U.size(def.L, board.W)}, ${U.thick(board.thinnest().t)} thick`],
+    ['Finish', `${U.line(board.tmin)} at the least, for the tabletop`],
+    ['Keep', `${U.thick(keepFor(def))} or more for the thickness mark`],
+    ['Par', `${def.par} strokes`],
+  ];
+  $('introFacts').innerHTML = facts.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('');
   $('introNote').textContent = def.note || wood.note;
   openSheet('intro');
 }
@@ -483,7 +489,7 @@ function evaluate() {
   const th = board.thinnest().t, spots = board.tornSpots(), fl = board.flatness();
   const marks = [
     { ok: true, label: 'Flat', v: 'within ' + U.small(fl) },
-    { ok: th >= def.best - 0.3, label: 'Thickness kept', v: U.thick(th) },
+    { ok: th >= keepFor(def), label: th >= keepFor(def) ? 'Thickness kept' : 'Thickness', v: th >= keepFor(def) ? U.thick(th) : U.thick(th) + ', under ' + U.thick(keepFor(def)) },
     { ok: spots === 0, label: spots ? 'Tear-out' : 'No tear-out', v: spots ? spots + (spots === 1 ? ' spot' : ' spots') : '' },
     { ok: strokes <= def.par, label: 'Within par', v: strokes + ' of ' + def.par },
   ];
@@ -552,8 +558,9 @@ function updateHud() {
   $('thick').textContent = U.thick(th);
   $('line').textContent = 'line ' + U.line(board.tmin);
   scene.lineLabel = U.line(board.tmin) + ' line';
+  // Amber once it's thinner than the thickness mark allows, red through the line.
   const st = $('thick').parentElement;
-  st.classList.toggle('warn', margin < 0.25 && margin >= 0);
+  st.classList.toggle('warn', th < keepFor(def) && margin >= 0);
   st.classList.toggle('over', margin < 0);
 }
 
