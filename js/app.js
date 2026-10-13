@@ -337,6 +337,7 @@ function setMode(m) {
   $('edgeBtn').setAttribute('aria-pressed', String(m === 'straightedge'));
   if (m === 'straightedge') {
     document.querySelectorAll('.tool[data-tool]').forEach(b => b.setAttribute('aria-checked', 'false'));
+    if (hover) { hover = false; scene.plane.show = false; } // a mouse no longer holds a plane over the board
   } else selectTool(tool);
   syncLoupe();
 }

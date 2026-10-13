@@ -603,6 +603,17 @@ try {
     assert.match(await pg.textContent('#thick'), /mm$/, 'millimetres outside the US');
     await mouseDrag(pg, -15, 70, 625, 70);
     assert.equal((await peek(pg)).strokes, 1, label + ': a mouse stroke counts');
+    if (label === 'laptop') {
+      const h = await at(pg, 300, 60), shows = () => pg.evaluate(() => window.outOfWind.scene.plane.show);
+      await pg.mouse.move(h.x, h.y);
+      assert.equal(await shows(), true, 'the mouse holds the plane over the board');
+      await pg.keyboard.press('e');
+      await pg.mouse.move(h.x + 40, h.y + 10);
+      assert.equal(await shows(), false, 'and puts it down to use the straightedge');
+      await pg.keyboard.press('2');
+      await pg.mouse.move(h.x, h.y);
+      assert.equal(await shows(), true, 'and picks it up again after');
+    }
     const box = await pg.locator('.tray').boundingBox();
     assert.ok(box.x >= 0 && box.x + box.width <= viewport.width + 0.5 && box.y + box.height <= viewport.height + 0.5, label + ': the tools fit');
     assert.equal(await pg.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, label + ': no sideways scrolling');
