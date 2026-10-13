@@ -13,7 +13,7 @@ import { woodTextures, canvas } from './wood.js';
 import { rng } from './rng.js';
 
 const LIGHT = norm([0.55, -0.5, 0.67]); // raking light from the far end and the top edge, low
-const RELIEF = 48; // how much the shading exaggerates slopes
+const RELIEF = 80; // how much the shading exaggerates slopes (a cup shows as a darker band along its high edge)
 const LIGHT_GAP = 'rgba(255,248,222,.95)'; // light showing under a sole or a straightedge
 
 function norm(v) { const l = Math.hypot(...v); return v.map(c => c / l); }
