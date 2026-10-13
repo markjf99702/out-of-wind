@@ -195,6 +195,12 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brass); outline
 .how-card p { margin: 10px 0 0; font-size: 16px; line-height: 1.45; }
 .how-card b { font-weight: 700; }
 .how-card .grain-fig { display: block; width: 100%; max-width: 340px; height: auto; margin: 8px 0 2px; }
+/* The grain figure the way the bench shows the board: along the screen, or standing up it. */
+.how-card .grain-fig.tall { display: none; max-width: 260px; }
+@media (orientation: portrait) {
+  .how-card .grain-fig.wide { display: none; }
+  .how-card .grain-fig.tall { display: block; }
+}
 
 .noscript { position: fixed; inset: 0; margin: 0; display: flex; align-items: center; justify-content: center; padding: 16px; text-align: center; font: 400 22px var(--disp); background: var(--bg); }
 

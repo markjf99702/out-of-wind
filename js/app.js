@@ -491,12 +491,20 @@ function moveStroke(p) {
     sound.crackle(out.torn);
     const j = Math.max(0, Math.min(board.NY - 1, Math.floor(p.y / board.dy)));
     scene.chips(out.torn, p.x, p.y, rgb(board.wood(j).early));
-    if (!state.seen.tear) {
-      hint('tear', 'Tear-out: that’s against the grain. The lines on the edge slope down the way to plane.');
-    }
+    tornNote(p);
   }
   sound.cutLevel(out.rows ? out.width / PLANES[tool].blade : 0, out.rows > 0);
   kick();
+}
+
+// The first tear-out of each kind says why, for the spot where it happened: against the grain (and
+// which way it runs there), round a knot, or in figure that turns every inch.
+function tornNote(p) {
+  const i = Math.max(0, Math.min(board.NX - 1, Math.floor(p.x / board.dx))), j = Math.max(0, Math.min(board.NY - 1, Math.floor(p.y / board.dy)));
+  const knot = (def.knots || []).some(([kx, ky, kr]) => Math.hypot(p.x - kx * board.L, (p.y - ky * board.W) * 1.6) < kr * 3);
+  if (def.curl || def.ribbon) hint('tearFigure', 'Tear-out: this figure turns every inch or so, so some of it always runs against the plane. Fine passes with the smoother get through it clean.');
+  else if (knot) hint('tearKnot', 'Tear-out round the knot: the grain swirls there and tears whichever way you go. Take it down with the smoother.');
+  else hint('tear', `Tear-out: against the grain. Here it runs toward the ${board.grain[i * board.NY + j] > 0 ? 'far' : 'near'} end, the way the lines on the edge head from the face into the wood.`);
 }
 
 function endStroke() {
@@ -745,7 +753,14 @@ function showFailed() {
 
 $('nextBtn').addEventListener('click', () => { const next = BOARDS[def.no]; if (next) go(next.no); });
 $('againBtn').addEventListener('click', restart);
-$('keepBtn').addEventListener('click', () => { keepGoing = true; persist(); closeSheets(); });
+$('keepBtn').addEventListener('click', () => {
+  keepGoing = true;
+  persist();
+  closeSheets();
+  // Planing out the tear-out: ring each spot for a moment, so you know where to go.
+  const spots = board.tornPatches();
+  if (spots.length) { scene.rings = { spots, t0: performance.now() }; kick(); }
+});
 
 function restart() {
   if (!def) return;
@@ -876,7 +891,7 @@ function loop(now) {
   raf = 0;
   if ($('bench').hidden) return;
   scene.frame(now);
-  if (stroke || scene.flying.length || scene.scribble || scene.glow > 0 || scene.mark || scene.ghost) kick();
+  if (stroke || scene.flying.length || scene.scribble || scene.glow > 0 || scene.mark || scene.ghost || scene.rings) kick();
 }
 
 function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]); }

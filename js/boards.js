@@ -34,7 +34,7 @@ export const BOARDS = [
   {
     no: 5, wood: 'ash', L: 762, W: 152, seed: 505, cup: 0.2, bow: 0.16, flips: [[0.55, 0.25]], rough: 0.12, spare: 0.8,
     title: 'Turning grain', t0: 20.37, par: 66, best: 19.85,
-    note: 'Partway along, the grain turns around. Read the edge: plane each end the way its grain runs downhill, or it will tear.',
+    note: 'Partway along, the grain turns around. Read the edge: follow its lines from the face into the wood, and plane each end the way they head there, or it will tear. Where it turns, the smoother gets through clean.',
   },
   {
     no: 6, wood: 'redoak', L: 838, W: 165, seed: 627, twist: 0.24, cup: 0.15, rough: 0.12, flips: [[0.3, -0.2]], spare: 0.7,

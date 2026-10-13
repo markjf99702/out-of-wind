@@ -37,6 +37,7 @@ export class Scene {
     this.mark = null; // a spot to point at: { x, y, kind }
     this.glow = 0; // the face lit up when it's finished
     this.ghost = null; // a plane sliding along the board on its own, to show a stroke: { t0, y, x0, x1, tool }
+    this.rings = null; // spots ringed for a moment, to find them: { spots: [{ x, y, n }], t0 }
   }
 
   // ---------- layout ----------
@@ -80,7 +81,7 @@ export class Scene {
   // ---------- board layers ----------
   setBoard(board) {
     this.board = board;
-    this.pile = []; this.flying = []; this.curl = null; this.straight = null; this.mark = null; this.glow = 0; this.ghost = null;
+    this.pile = []; this.flying = []; this.curl = null; this.straight = null; this.mark = null; this.glow = 0; this.ghost = null; this.rings = null;
     this.loupe = { mode: 'plane', y: board.W / 2, line: null };
     this.texKey = null;
     if (this.W) this.layout();
@@ -208,29 +209,44 @@ export class Scene {
     for (let k = 0; k < b.torn.length; k++) if (b.torn[k]) { this.drawTear(k); this.tornShown[k] = 1; }
   }
 
+  // Torn fibres: a ragged pit drawn out along the grain, bigger than its cell so a spot reads on a
+  // phone, dark inside, with pale broken fibres lifted round its rim catching the lamp.
   drawTear(k) {
     const b = this.board, tc = this.tearC.getContext('2d'), [x, y, w, h] = this.cellRect(k);
     const r = rng(k * 2654435761 + b.def.seed);
     const wood = b.wood(k % b.NY), late = rgb(wood.late), early = rgb(wood.early);
-    // Torn fibres: a ragged dark hollow drawn out along the grain, with pale lifted splinters.
-    tc.fillStyle = `rgba(${late[0] * 0.5 | 0},${late[1] * 0.42 | 0},${late[2] * 0.36 | 0},0.78)`;
-    tc.beginPath();
-    const n = 8, cx = x + w / 2 + (r() - 0.5) * w * 0.3, cy = y + h / 2 + (r() - 0.5) * h * 0.3;
-    for (let q = 0; q < n; q++) {
-      const a = (q / n) * Math.PI * 2, rr = 0.45 + r() * 0.4;
-      const px = cx + Math.cos(a) * w * rr * 1.3, py = cy + Math.sin(a) * h * rr * 0.6;
-      q ? tc.lineTo(px, py) : tc.moveTo(px, py);
-    }
-    tc.closePath();
-    tc.fill();
-    tc.strokeStyle = `rgba(${Math.min(255, early[0] * 1.15) | 0},${Math.min(255, early[1] * 1.12) | 0},${Math.min(255, early[2] * 1.05) | 0},0.9)`;
-    tc.lineWidth = Math.max(0.7, w * 0.09);
-    tc.lineCap = 'round';
-    for (let q = 0; q < 3; q++) {
-      const sx = x + r() * w, sy = y + r() * h;
+    const cx = x + w / 2 + (r() - 0.5) * w * 0.3, cy = y + h / 2 + (r() - 0.5) * h * 0.3;
+    const pale = `rgba(${Math.min(255, early[0] * 1.2 + 28) | 0},${Math.min(255, early[1] * 1.18 + 26) | 0},${Math.min(255, early[2] * 1.1 + 22) | 0},0.95)`;
+    const ragged = (rx, ry) => {
       tc.beginPath();
-      tc.moveTo(sx, sy);
-      tc.lineTo(sx + (r() - 0.2) * w * 1.1, sy + (r() - 0.5) * h * 0.35);
+      const n = 10;
+      for (let q = 0; q < n; q++) {
+        const a = (q / n) * Math.PI * 2, rr = 0.7 + r() * 0.45;
+        const px = cx + Math.cos(a) * rx * rr, py = cy + Math.sin(a) * ry * rr;
+        q ? tc.lineTo(px, py) : tc.moveTo(px, py);
+      }
+      tc.closePath();
+    };
+    // The lifted rim.
+    tc.fillStyle = pale;
+    ragged(w * 1.7, h * 1.05);
+    tc.fill();
+    // The pit, and its deepest part.
+    tc.fillStyle = `rgba(${late[0] * 0.42 | 0},${late[1] * 0.34 | 0},${late[2] * 0.28 | 0},0.94)`;
+    ragged(w * 1.35, h * 0.72);
+    tc.fill();
+    tc.fillStyle = `rgba(${late[0] * 0.2 | 0},${late[1] * 0.15 | 0},${late[2] * 0.12 | 0},0.9)`;
+    ragged(w * 0.75, h * 0.36);
+    tc.fill();
+    // Broken fibres sticking out along the grain.
+    tc.strokeStyle = pale;
+    tc.lineWidth = Math.max(0.9, w * 0.14);
+    tc.lineCap = 'round';
+    for (let q = 0; q < 6; q++) {
+      const side = q % 2 ? 1 : -1, sy = cy + (r() - 0.5) * h * 1.3;
+      tc.beginPath();
+      tc.moveTo(cx + side * w * 0.9, sy);
+      tc.lineTo(cx + side * w * (1.7 + r() * 0.7), sy + (r() - 0.5) * h * 0.5);
       tc.stroke();
     }
   }
@@ -447,10 +463,29 @@ export class Scene {
       ctx.strokeStyle = '#e0533a'; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.arc(pu, pv, 11 + 2 * Math.sin(now / 160), 0, Math.PI * 2); ctx.stroke();
     }
+    if (this.rings) {
+      // Each spot of tear-out ringed in pencil-crayon orange for a few seconds, fading at the end.
+      const t = (now - this.rings.t0) / 3200;
+      if (t >= 1) this.rings = null;
+      else {
+        ctx.save();
+        ctx.globalAlpha = t > 0.8 ? (1 - t) / 0.2 : 1;
+        ctx.lineWidth = 2.5;
+        for (const sp of this.rings.spots) {
+          const pu = u0 + sp.x * s, pv = v0 + sp.y * s, rad = Math.max(11, Math.sqrt(sp.n) * 5 * s * 1.3) + 2 * Math.sin(now / 160);
+          ctx.strokeStyle = 'rgba(20,12,8,.5)';
+          ctx.beginPath(); ctx.arc(pu, pv, rad + 1.5, 0, Math.PI * 2); ctx.stroke();
+          ctx.strokeStyle = '#f0a35e';
+          ctx.beginPath(); ctx.arc(pu, pv, rad, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
   }
 
   // The front edge, where you read the grain, and the end grain at the near end.
-  // The lines are the fibres running out to the face: they slope down into the board the way to plane.
+  // The lines are the fibres running out to the face: followed from the face into the board, they head
+  // the way to plane.
   drawEdges() {
     const b = this.board, ppm = this.ppm;
     const w = Math.round(b.L * ppm), eh = Math.max(6, Math.round(13 * this.dpr));

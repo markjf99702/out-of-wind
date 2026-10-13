@@ -300,8 +300,15 @@ try {
   await page.click('#backBtn');
   await page.click('.plank[data-no="2"]');
 
-  step('millimetres from the menu, remembered');
+  step('the How-to draws the grain the way the bench shows it: standing up on a phone held upright');
   await page.click('#introGo');
+  await page.click('#menuBtn');
+  await page.click('#menuHowBtn');
+  assert.ok(await page.isVisible('#how .grain-fig.tall') && await page.isHidden('#how .grain-fig.wide'));
+  await page.click('#howClose');
+  await page.click('#menuClose');
+
+  step('millimetres from the menu, remembered');
   await page.click('#menuBtn');
   await page.click('#menuUnitBtn');
   await page.click('#menuClose');
@@ -412,10 +419,17 @@ try {
     let q = await peek(pg);
     assert.ok(q.flat > 0.15 && q.flat <= 0.21 && !q.done, 'nearly flat: ' + q.flat);
     assert.equal(await pg.textContent('#toast'), 'Nearly flat. It stands highest toward the far end, by the right edge: a stroke there.');
+    // A spot of tear-out by the near left corner, left for the end.
+    await pg.evaluate(() => { const b = window.outOfWind.board(); b.torn[3 * b.NY + 2] = 1; window.outOfWind.scene.redrawTears(); });
     await touchSwipe(pg, cd, 0.55 * L, L + 20, W - 25);
     q = await peek(pg);
     assert.equal(q.done, true, 'a stroke where it stands highest finishes it: ' + q.flat);
     await pg.waitForSelector('#result', { state: 'visible', timeout: 10000 });
+    // Going back to plane out the tear-out rings each spot, to find it.
+    assert.equal(await pg.textContent('#keepBtn'), 'Plane out the tear-out');
+    await pg.click('#keepBtn');
+    const rings = await pg.evaluate(() => window.outOfWind.scene.rings && window.outOfWind.scene.rings.spots.map(p => [Math.round(p.x), Math.round(p.y)]));
+    assert.deepEqual(rings, [[18, 13]], 'the spot by the near left corner is ringed');
     await c.close();
   }
 
@@ -490,6 +504,9 @@ try {
     const box = await pg.locator('.tray').boundingBox();
     assert.ok(box.x >= 0 && box.x + box.width <= viewport.width + 0.5 && box.y + box.height <= viewport.height + 0.5, label + ': the tools fit');
     assert.equal(await pg.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, label + ': no sideways scrolling');
+    await pg.click('#menuBtn');
+    await pg.click('#menuHowBtn');
+    assert.ok(await pg.isVisible('#how .grain-fig.wide') && await pg.isHidden('#how .grain-fig.tall'), label + ': the How-to draws the grain along the screen, as the bench does');
     await c.close();
   }
 

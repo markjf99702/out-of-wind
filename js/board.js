@@ -208,25 +208,29 @@ export class Board {
   tornLeft() { let n = 0; for (const c of this.torn) if (c) n++; return n; }
 
   // Patches of tear-out, counted as separate spots (cells touching side by side are one spot).
-  tornSpots() {
-    const { NX, NY, torn } = this, seen = new Uint8Array(torn.length);
-    let spots = 0;
+  tornSpots() { return this.tornPatches().length; }
+
+  // The same patches, each with where it is (its middle, mm) and how many cells it covers.
+  tornPatches() {
+    const { NX, NY, torn } = this, seen = new Uint8Array(torn.length), out = [];
     for (let k = 0; k < torn.length; k++) {
       if (!torn[k] || seen[k]) continue;
-      spots++;
       const stack = [k];
+      let n = 0, sx = 0, sy = 0;
       seen[k] = 1;
       while (stack.length) {
         const c = stack.pop(), i = Math.floor(c / NY), j = c % NY;
+        n++; sx += this.xOf(i); sy += this.yOf(j);
         for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
           const ii = i + di, jj = j + dj;
           if (ii < 0 || jj < 0 || ii >= NX || jj >= NY) continue;
-          const n = ii * NY + jj;
-          if (torn[n] && !seen[n]) { seen[n] = 1; stack.push(n); }
+          const m = ii * NY + jj;
+          if (torn[m] && !seen[m]) { seen[m] = 1; stack.push(m); }
         }
       }
+      out.push({ x: sx / n, y: sy / n, n });
     }
-    return spots;
+    return out;
   }
 
   // The height of the face at any point, interpolated between cells.
