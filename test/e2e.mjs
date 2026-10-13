@@ -141,6 +141,7 @@ try {
   assert.ok(lane.nearEnd + lane.farEnd > 0.5, 'it took the high ends: ' + JSON.stringify(lane));
   assert.equal(lane.middle, 0, 'and rode over the hollow');
   assert.ok(lane.pencilMiddle === 1 && lane.pencilEnds < 0.8, 'the pencil went where it cut');
+  assert.match(await page.textContent('#toast'), /until the pencil’s gone\.$/, 'and the bench says to plane until it’s gone');
   assert.equal(await page.textContent('#strokes'), '1');
   // A tap on the board isn't a stroke.
   const mid = await at(page, 300, 70);
@@ -564,6 +565,7 @@ try {
     let n = 0;
     for (let k = 0; k < 60 && !(await peek(pg)).done; k++) {
       await touchSwipe(pg, cd, inset, L - inset, [24, 52, 80, 103][k % 4], 12);
+      if (!k) assert.match(await pg.textContent('#toast'), /until the whole face is planed\.$/, 'no pencil on it, so the first note doesn’t talk about any');
       n++;
     }
     const q = await peek(pg);

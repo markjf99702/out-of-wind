@@ -619,7 +619,7 @@ function endsLeft(r) {
 // What the first boards say as you go, once each.
 function coach(r) {
   const no = def.no, rough = board.roughLeft(), fl = board.flatness();
-  if (no === 1 && strokes === 1 && tool === 'jointer') hint('c1a', 'The jointer only cut where the board stands high. Keep taking full-length strokes, lane by lane, until the pencil’s gone.');
+  if (no === 1 && strokes === 1 && tool === 'jointer') hint('c1a', `The jointer only cut where the board stands high. Keep taking full-length strokes, lane by lane, until ${board.pencil.some(Boolean) ? 'the pencil’s gone' : 'the whole face is planed'}.`);
   else if (no === 1 && strokes === 1) hint('c1b', 'Try the jointer: long strokes, the whole length of the board.');
   else if (no <= 2 && rough && fl < 0.3 && rough < board.cut.length * 0.06) hint('edges', 'Nearly flat. Let the plane hang off the edges to reach the last rough strips.');
   else if (no === 3 && strokes >= 4 && r.straight && r.to - r.from >= board.L * 0.8 && Math.abs(board.wind().wind) > WIND * 1.5) {
