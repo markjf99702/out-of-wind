@@ -28,6 +28,7 @@ let def = null, board = null, rand = null;
 let strokes = 0, tool = state.tool || 'jointer', mode = 'plane';
 let stroke = null, shaving = null, finished = false, failed = false, keepGoing = false;
 let edgeFrom = null, hover = false;
+let windWas = 0; // how far out of wind the board was, to notice when the sticks line up
 
 // ---------- the rack ----------
 const unlocked = no => no === 1 || !!state.best[no - 1];
@@ -172,14 +173,10 @@ function openBoard(no, fresh = false) {
   setMode('plane');
   updateHud();
   if (!resumed) showIntro();
+  windWas = Math.abs(board.wind().wind);
   // Drawing the wood takes a moment on a phone, so the card goes up first and the board after.
   const opened = board;
-  setTimeout(() => {
-    if (board !== opened) return;
-    scene.setBoard(board);
-    layout();
-    syncLoupe();
-  }, 30);
+  setTimeout(() => { if (board === opened) ready(); }, 30);
 }
 
 function layout() {
@@ -187,7 +184,16 @@ function layout() {
   scene.resize(stage.clientWidth, stage.clientHeight, dpr);
   kick();
 }
-const ready = () => board && scene.board === board;
+// The board goes onto the bench a moment after it's opened; anything that needs it puts it there now.
+function ready() {
+  if (!board) return false;
+  if (scene.board !== board) {
+    scene.setBoard(board); // lays itself out if the bench has been sized before
+    if (!scene.W) layout();
+    syncLoupe();
+  }
+  return true;
+}
 new ResizeObserver(() => { if (!$('bench').hidden) layout(); }).observe(stage);
 
 // ---------- the intro card ----------
@@ -199,7 +205,7 @@ function showIntro() {
   $('introNote').textContent = def.note || wood.note;
   openSheet('intro');
 }
-$('introGo').addEventListener('click', () => { sound.wake(); closeSheets(); });
+$('introGo').addEventListener('click', () => { sound.wake(); ready(); closeSheets(); });
 
 // ---------- tools ----------
 document.querySelectorAll('.tool[data-tool]').forEach(b => b.addEventListener('click', () => {
@@ -389,12 +395,17 @@ function endStroke() {
   if (!hover) scene.plane.show = false;
   if (r.counts) strokes++;
   scene.refit();
+  const gapBefore = scene.straight ? scene.straight.res.gap : null;
   if (scene.straight) layStraightedge({ x: scene.straight.x0, y: scene.straight.y0 }, { x: scene.straight.x1, y: scene.straight.y1 }, true);
   syncLoupe();
   if (board.thinnest().t >= board.tmin) {
+    const wind = Math.abs(board.wind().wind);
     if (r.counts && !r.cells) hint('nocut', 'Nothing to cut there: the sole is riding on higher wood. Try beside it, or another plane.');
+    else if (windWas > 0.3 && wind < 0.12) { toast('The winding sticks line up: out of wind.'); sound.tock(); }
+    else if (gapBefore > 0.08 && scene.straight.res.gap < 0.04) { toast('No light under the straightedge.'); sound.tink(); }
     else if (r.fullLength && r.fullWidth) toast('A full-length shaving.');
     else if (r.counts) coach(r);
+    windWas = Math.max(wind, windWas > 0.3 && wind >= 0.12 ? windWas : wind);
   }
   check();
   updateHud();
@@ -652,7 +663,7 @@ window.outOfWind = {
   board: () => board,
   scene,
   swipe(t, x0, x1, y) {
-    if (!ready()) { scene.setBoard(board); layout(); }
+    ready();
     selectTool(t); setMode('plane');
     beginStroke({ x: x0, y });
     const steps = Math.max(2, Math.ceil(Math.abs(x1 - x0) / 25));
