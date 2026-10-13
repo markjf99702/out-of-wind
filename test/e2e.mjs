@@ -205,10 +205,17 @@ try {
   });
   assert.ok(finish, 'the solver’s strokes finish it');
   assert.equal(finish.up, false, 'nothing old is left up when it’s done: ' + finish.text);
+  // A stroke taken in rhythm, while the face lights up and before the card, isn't planed.
+  const finishedAt = await peek(page);
+  assert.equal(finishedAt.settling, true, 'the card is on its way');
+  await touchSwipe(page, cdp, -15, 625, 40);
+  assert.equal((await peek(page)).strokes, finishedAt.strokes, 'no stroke while the card is on its way');
   await page.waitForSelector('#result', { state: 'visible', timeout: 10000 });
   p = await peek(page);
   assert.equal(p.done, true);
   assert.equal(p.finished, true);
+  assert.equal(p.strokes, finishedAt.strokes);
+  assert.match(await page.textContent('#resultMarks'), new RegExp(`${p.strokes} of ${p.par}`), 'the card counts the strokes the bench does');
   assert.equal(await page.textContent('#resultTitle'), 'Flat and out of wind');
   assert.match(await page.textContent('#resultStamp'), /^(FAS|Select|No\. 1|No\. 2)$/);
   assert.equal(await page.locator('#resultMarks li').count(), 4);

@@ -27,6 +27,7 @@ const stage = $('stage');
 let def = null, board = null, rand = null;
 let strokes = 0, tool = state.tool || 'jointer', mode = 'plane';
 let stroke = null, shaving = null, finished = false, failed = false, keepGoing = false;
+let settling = false; // from the stroke that finishes a board until its card is up: no more strokes
 let edgeFrom = null, hover = false;
 let windWas = 0; // how far out of wind the board was, to notice when the sticks line up
 let flatLog = []; // flatness after each stroke, to notice when it stops coming down
@@ -181,7 +182,7 @@ function openBoard(no, fresh = false) {
     delete state.benches[no];
     saved = null;
   }
-  strokes = 0; finished = false; failed = false; keepGoing = false; mode = 'plane';
+  strokes = 0; finished = false; failed = false; keepGoing = false; settling = false; mode = 'plane';
   flatLog = []; stuckAt = -99; fullSaid = false; missSaid = false; endsSaid = false;
   rand = rng(def.seed * 7919 + (state.attempts[no] || 0) * 104729 + 1);
   scene.scribbleSeed = null;
@@ -382,7 +383,7 @@ const cv = $('cv');
 let activePointer = null;
 
 cv.addEventListener('pointerdown', e => {
-  if (!ready() || activePointer != null || !$('intro').hidden) return;
+  if (!ready() || activePointer != null || !$('intro').hidden || settling) return;
   if (e.pointerType === 'mouse' && e.button !== 0) return;
   sound.wake();
   activePointer = e.pointerId;
@@ -612,7 +613,13 @@ function check() {
       $('toast').classList.remove('on');
       scene.glow = 1;
       sound.done();
-      setTimeout(() => showResult(result), 900);
+      // The face lights up for a moment before the card; nothing more is planed meanwhile.
+      settling = true;
+      const done = board;
+      setTimeout(() => {
+        settling = false;
+        if (board === done && board.done() && !failed) showResult(result);
+      }, 900);
     } else if (keepGoing) {
       toast(result.torn ? `Still flat. ${result.torn} ${result.torn === 1 ? 'spot' : 'spots'} of tear-out left.` : 'Still flat, and no tear-out left.');
     }
@@ -818,7 +825,7 @@ function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<':
 // For the tests: a look inside, and a way to take a stroke without a finger.
 window.outOfWind = {
   peek: () => board && ({
-    no: def.no, strokes, finished, failed, mode, tool, par: def.par,
+    no: def.no, strokes, finished, failed, settling, mode, tool, par: def.par,
     thick: board.thinnest().t, flat: board.flatness(), rough: board.roughLeft(), torn: board.tornSpots(),
     done: board.done(), loupe: scene.loupe.mode, straight: scene.straight && scene.straight.res.gap, sticks: scene.sticks,
   }),
