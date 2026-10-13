@@ -1,0 +1,11 @@
+{
+  "name": "out-of-wind",
+  "private": true,
+  "type": "module",
+  "description": "Flatten rough boards with hand planes, and stop before they're too thin for the tabletop.",
+  "scripts": {
+    "start": "npx --yes http-server -c-1 -p 8080 .",
+    "test": "node --test --test-concurrency=1 test/unit.test.mjs && node test/e2e.mjs",
+    "par": "node scripts/par.mjs"
+  }
+}
