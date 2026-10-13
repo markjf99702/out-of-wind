@@ -305,7 +305,7 @@ $('edgeBtn').addEventListener('click', () => {
   setMode('straightedge');
   if (!scene.straight) layStraightedge({ x: board.L * 0.5, y: board.W * 0.5 }, { x: board.L * 0.5 + 10, y: board.W * 0.5 }, true);
   else sound.tink();
-  if (state.seen.edge) toast(edgeWords(scene.straight).text, 4200);
+  if (state.seen.edge && scene.straight) toast(scene.straight.words.text, 4200);
   hint('edge', 'Drag along or across the board to lay the straightedge somewhere else. It shows light wherever the face dips away beneath it.');
 });
 
@@ -337,20 +337,21 @@ function layStraightedge(a, b, quiet) {
 function edgeWords(st) {
   const r = readEdge(st.res), g = U.small(r.gap);
   const along = Math.abs(st.y1 - st.y0) < 1, across = Math.abs(st.x1 - st.x0) < 1;
-  // A point on it (a fraction along), as a place on the board.
+  // A point on it (a fraction along), as a place on the board: 'the middle', 'the near end', 'one edge'.
   const place = t => {
-    if (across) return t < 0.3 || t > 0.7 ? 'near one edge' : 'the middle';
+    if (across) return t < 0.3 || t > 0.7 ? 'one edge' : 'the middle';
     const x = (st.x0 + (st.x1 - st.x0) * t) / board.L;
     return x < 0.3 ? 'the near end' : x > 0.7 ? 'the far end' : 'the middle';
   };
+  const near = where => (where === 'the middle' ? 'in the middle' : 'toward ' + where);
   switch (r.kind) {
     case 'none': return { label: 'no light', text: 'No light under the straightedge.' };
     case 'hollow': return across
       ? { label: 'light in the middle', text: `Light in the middle, ${g} at most: cupped here, the edges high. Plane the edges.` }
       : { label: 'light in the middle', text: `Light in the middle, ${g} at most: hollow here. Full-length jointer strokes ride the high ends down.` };
     case 'rocks': {
-      const at = place((r.t0 + r.t1) / 2);
-      return { label: 'rocks on ' + at, text: `It rocks on ${at}, with ${g} of light either side: that stands high. Plane where it touches${along ? ', with short strokes' : ''}.` };
+      const at = near(place((r.t0 + r.t1) / 2));
+      return { label: 'rocks ' + at, text: `It rocks on a high spot ${at}, with ${g} of light either side. Plane where it touches${along ? ', with short strokes' : ''}.` };
     }
     case 'two': return { label: 'two high spots', text: `It rests on two high spots with ${g} of light between them. Plane where it touches.` };
     default: {

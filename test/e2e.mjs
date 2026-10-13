@@ -306,6 +306,11 @@ try {
     }
     return seen;
   });
+  // A straightedge along it rocks on the crown, and says so.
+  await page.click('#edgeBtn');
+  await mouseDrag(page, 30, 24, 780, 24);
+  assert.match(await page.textContent('#toast'), /^It rocks on a high spot in the middle, with 0\.\d{2} mm of light either side\. Plane where it touches, with short strokes\.$/);
+  await page.click('[data-tool="jointer"]');
   let said = await fullPasses();
   assert.ok(said.some(x => /^Still crowned\. /.test(x)), 'said: ' + said.join(' | '));
   await page.click('#menuBtn');
