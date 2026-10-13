@@ -531,6 +531,9 @@ try {
     const { L } = await pg.evaluate(() => ({ L: window.outOfWind.board().L }));
     await touchSwipe(pg, cd, -15, L + 15, 200);
     await pg.waitForSelector('#result', { state: 'visible', timeout: 10000 });
+    // The panel fills the bench across, so its shaving lands past an end rather than across the board.
+    const lying = await pg.evaluate(() => { const s = window.outOfWind.scene; return s.pile.map(f => ({ end: f.end, over: f.u > s.u0 - 20 && f.u < s.u0 + s.bw + 20 && f.v > s.v0 - 6 && f.v < s.v0 + s.bh + 6 })); });
+    assert.ok(lying.length && lying.every(f => f.end && !f.over), 'the shavings lie past the ends: ' + JSON.stringify(lying));
     assert.equal(await pg.textContent('#nextBtn'), 'See the tabletop');
     await pg.click('#nextBtn');
     await pg.waitForSelector('#table', { state: 'visible' });

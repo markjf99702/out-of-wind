@@ -75,8 +75,13 @@ export class Scene {
     this.eh = eh;
     this.lh = lh;
     this.ppm = clamp(s * this.dpr, 0.6, 1.6); // wood is soft: past this, more pixels only cost time
-    // Shavings already on the bench stay beside the board when it's laid out again (a phone turned on its side).
-    for (const f of this.pile) { f.u = clamp(f.u, 34, BU - 34); f.v = clamp(f.v, 22, Math.max(24, top - 10)); }
+    // Shavings already on the bench stay beside the board, or past its end, when it's laid out again
+    // (a phone turned on its side).
+    for (const f of this.pile) {
+      if (f.end && this.placePastEnd(f)) continue;
+      f.end = 0;
+      f.u = clamp(f.u, 34, BU - 34); f.v = clamp(f.v, 22, Math.max(24, top - 10));
+    }
     this.pileDrawn = Infinity;
     this.buildLayers();
   }
@@ -577,19 +582,42 @@ export class Scene {
     const back = Math.min(curl.len, 400) * s * (p.dir || 1);
     const room = Math.max(12, this.v0 - 16);
     // Clear of the bench's edges, so a whole curl shows.
-    const to = {
+    const to = this.land({
       u: clamp(from.u - back * (0.2 + r() * 0.6) + (r() - 0.5) * 30, 34, this.BU - 34),
       v: clamp(this.v0 - 14 - Math.pow(r(), 0.7) * room, 22, Math.max(24, this.v0 - 10)),
-    };
+    }, r);
     this.flying.push({ ...curl, from, to, t0: performance.now(), rot0: r() * 6.28, spin: (r() - 0.5) * 6 });
   }
   chips(n, x, y, color) {
     const s = this.s, r = Math.random;
     for (let q = 0; q < Math.min(n, 6); q++) {
       const from = { u: this.u0 + x * s, v: this.v0 + y * s };
-      const to = { u: from.u + (r() - 0.5) * 60, v: this.v0 - 6 - r() * 40 };
+      const to = this.land({ u: from.u + (r() - 0.5) * 60, v: this.v0 - 6 - r() * 40 }, r);
       this.flying.push({ chip: true, len: 3 + r() * 4, w: 2 + r() * 3, color, from, to, t0: performance.now(), rot0: r() * 6.28, spin: (r() - 0.5) * 10 });
     }
+  }
+
+  // A board as wide as the bench allows (the glued-up panel) leaves no room beside it, so what comes
+  // off it lands past the end it came nearer instead of across the board's edge. to: where it would
+  // land beside the board. Past an end, it keeps its place there (end, fu, fv) when the bench is
+  // laid out again.
+  land(to, r) {
+    if (this.v0 >= 40) return to;
+    const nearer = to.u < this.u0 + this.bw / 2 ? -1 : 1;
+    const end = this.pastEnd(nearer) ? nearer : this.pastEnd(-nearer) ? -nearer : 0;
+    return end ? this.placePastEnd({ end, fu: r(), fv: r() }) : to;
+  }
+  // The bench past the near end (-1) or beyond the stop at the far end (1), along, if a curl fits there.
+  pastEnd(end) {
+    const [a, z] = end < 0 ? [34, this.u0 - 30] : [this.u0 + this.bw + 36, this.BU - 34];
+    return z - a >= 40 ? [a, z] : null;
+  }
+  placePastEnd(f) {
+    const room = this.pastEnd(f.end);
+    if (!room) return null;
+    f.u = mix(room[0], room[1], f.fu);
+    f.v = mix(this.v0 + 16, this.v0 + this.bh - 16, f.fv);
+    return f;
   }
 
   drawFlying(ctx, now) {
@@ -601,7 +629,7 @@ export class Scene {
       const rot = f.rot0 + f.spin * t;
       drawLoose(ctx, f, u, v, rot, this.s, true);
       if (t < 1) keep.push(f);
-      else if (!f.chip || Math.random() < 0.5) { this.pile.push({ ...f, u: f.to.u, v: f.to.v, rot }); if (this.pile.length > 140) { this.pile.splice(0, 40); this.pileDrawn = Infinity; } }
+      else if (!f.chip || Math.random() < 0.5) { this.pile.push({ ...f, ...f.to, rot }); if (this.pile.length > 140) { this.pile.splice(0, 40); this.pileDrawn = Infinity; } }
     }
     this.flying = keep;
   }
