@@ -36,7 +36,7 @@ export class Scene {
     this.scribble = null; // pencil being drawn: { paths, t0, dur }
     this.mark = null; // a spot to point at: { x, y, kind }
     this.glow = 0; // the face lit up when it's finished
-    this.ghost = null; // a plane sliding along the board on its own, to show a stroke: { t0, y, tool }
+    this.ghost = null; // a plane sliding along the board on its own, to show a stroke: { t0, y, x0, x1, tool }
   }
 
   // ---------- layout ----------
@@ -508,18 +508,20 @@ export class Scene {
     ctx.restore();
   }
 
-  // The first board shows what a stroke is: a faint plane glides from the near end to the far end,
-  // its mouth (where your finger goes) starting on the board, just in from the end.
+  // The first board shows what a stroke is: a faint plane glides from just off the near end to just
+  // off the far end, its mouth (where your finger goes) from g.x0 to g.x1, again and again, with a
+  // pause between, until you take a stroke yourself.
   drawGhost(ctx, now) {
-    const g = this.ghost, b = this.board, s = this.s, dur = 1800, t = (now - g.t0) / dur;
-    if (t >= 1.3) { this.ghost = null; return; }
+    const g = this.ghost, s = this.s, dur = 1800, gap = 900;
+    const t = ((now - g.t0) % (dur * 1.3 + gap)) / dur;
+    if (t >= 1.3) return;
     const e = 0.5 - 0.5 * Math.cos(Math.PI * clamp(t, 0, 1));
-    const x = 8 + (b.L - 16) * e;
+    const x = g.x0 + (g.x1 - g.x0) * e;
     const fade = t < 0.12 ? t / 0.12 : t > 1 ? Math.max(0, 1 - (t - 1) / 0.3) : 1;
     ctx.save();
     ctx.translate(this.u0 + x * s, this.v0 + g.y * s);
     ctx.scale(s, s);
-    ctx.globalAlpha = 0.55 * fade;
+    ctx.globalAlpha = 0.6 * fade;
     drawPlaneBody(ctx, PLANES[g.tool]);
     ctx.restore();
   }

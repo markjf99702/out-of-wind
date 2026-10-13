@@ -117,6 +117,43 @@ test('a stroke counts when it takes a shaving, and dragging back lifts the iron'
   assert.equal(e.dir, 1);
 });
 
+test('a stroke put down or lifted near an end counts as off it, the way a finger starts and stops', () => {
+  // A hollow: the ends stand high, and an end the plane never reaches holds it up on every stroke after.
+  const ends = b => { const j = b.NY >> 1; return [b.cut[j], b.cut[(b.NX - 1) * b.NY + j]]; };
+  const pushed = plain({ bow: 1.2 });
+  stroke(pushed, 'jointer', 8, pushed.L - 8, 90, 90, rng(1));
+  assert.deepEqual(ends(pushed), [1, 1], 'put down 8 mm on and lifted 8 mm short, it takes both ends');
+  const pulled = plain({ bow: 1.2 });
+  stroke(pulled, 'jointer', pulled.L - 8, 8, 90, 90, rng(1));
+  assert.deepEqual(ends(pulled), [1, 1], 'pulled toward you, too');
+  const inside = plain({ bow: 1.2 });
+  const r = stroke(inside, 'jointer', 60, inside.L - 60, 90, 90, rng(1));
+  assert.deepEqual(ends(inside), [0, 0], 'put down well onto the board, it starts where it is put down');
+  assert.ok(r.startIn === 60 && r.stopShort === 60, 'and says how far in: ' + r.startIn + ', ' + r.stopShort);
+  assert.ok(stroke(plain({}), 'jointer', 8, 400, 90).startIn === 0, 'near the end counts as off it');
+  // The page passes its own reach, from how big the board is on the screen.
+  const wide = plain({ bow: 1.2 });
+  const s = new Stroke(wide, 'jointer', 30, 90, rng(1), 35);
+  for (let x = 50; x <= wide.L - 30; x += 20) s.move(x, 90);
+  assert.equal(s.liftTo(), wide.L + 1, 'lifted within reach of the far end, it runs off it');
+  s.end();
+  assert.deepEqual(ends(wide), [1, 1]);
+});
+
+test('swipes put down and lifted 8 mm inside both ends finish board 1 within par', () => {
+  // The way a finger on a phone goes "end to end": lane by lane, a little wobbly, never quite off the ends.
+  const def = BOARDS[0], b = new Board(def), r = rng(3);
+  const lanes = [24, 52, 80, 103];
+  let strokes = 0;
+  for (let k = 0; k < 80 && !b.done(); k++) {
+    const y = lanes[k % lanes.length], s = new Stroke(b, 'jointer', 8, y, r);
+    for (let q = 1; q <= 24; q++) s.move(8 + ((b.L - 16) * q) / 24, y + (q < 24 ? Math.sin(q * 1.7) * 1.5 : 0));
+    if (s.end().counts) strokes++;
+  }
+  assert.equal(b.done(), true, `not flat after ${strokes} strokes: ${b.flatness().toFixed(3)}, ${b.roughLeft()} cells rough`);
+  assert.ok(strokes <= def.par, `${strokes} strokes, over par ${def.par}`);
+});
+
 test('a stroke that cuts nothing is free, and says whether it skated or went across', () => {
   // A short jointer stroke in the middle of a hollow rides over it: no shaving, so no stroke.
   const hollow = plain({ bow: 1.2 });
@@ -171,13 +208,17 @@ test('each board’s card can be followed to the finish by someone who sees only
   // scripts/cards.mjs plays each board the way its card says, judging the face only by the sticks,
   // the straightedge's light, the rough patches, the grain on the edge and tear-out, with lanes at
   // three spacings. Every board up to the panel has to come out flat, above the line, within par.
+  // Once more, every stroke is put down 8 mm onto the board and lifted 8 mm short of the other end,
+  // as a finger does, and that has to finish too, in no more strokes than the lanes off the ends took.
   for (const def of BOARDS.filter(d => !d.panel)) {
     const r = followAll(def);
-    for (const run of r.runs) {
+    for (const run of [...r.runs, r.onBoard]) {
       assert.equal(run.culled, false, `board ${def.no}: through the line following its card`);
       assert.equal(run.done, true, `board ${def.no}: not finished following its card (flat ${run.flat.toFixed(3)} after ${run.strokes} strokes)`);
     }
     assert.ok(r.median <= def.par, `board ${def.no}: the card takes ${r.median} strokes, over par ${def.par}`);
+    const most = Math.max(...r.runs.map(x => x.strokes));
+    assert.ok(r.onBoard.strokes <= most, `board ${def.no}: started on the board it takes ${r.onBoard.strokes} strokes, against ${most} off the ends`);
   }
 });
 

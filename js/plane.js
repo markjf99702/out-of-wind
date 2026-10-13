@@ -23,15 +23,23 @@ export const PLANES = {
   },
 };
 
+// How near an end of the board counts as off it (mm). A finger can't start a stroke exactly at the end
+// of the board, or stop exactly at the other, so a stroke put down this close to the end it moves away
+// from starts at that end, and one lifted this close to the end it's heading for runs off it. The page
+// passes its own, from how big the board is on the screen.
+export const REACH = 12;
+
 const XS = new Float64Array(1024), ZS = new Float64Array(1024);
 const HX = new Float64Array(1024), HZ = new Float64Array(1024);
 
 export class Stroke {
   // x, y: where the blade is put down (mm). rand: the board's random stream (for tear-out).
-  constructor(board, tool, x, y, rand) {
+  // reach: how near an end counts as off it (mm).
+  constructor(board, tool, x, y, rand, reach = REACH) {
     this.b = board;
     this.t = typeof tool === 'string' ? PLANES[tool] : tool;
     this.rand = rand;
+    this.reach = reach;
     this.x = x; this.y = y; // where the blade is now
     this.x0 = x; this.y0 = y;
     this.spanX = 0; this.spanY = 0; // how far the finger has gone along and across from where it started
@@ -57,7 +65,10 @@ export class Stroke {
     if (!this.dir) {
       if (Math.abs(x - this.x0) < 3) { this.y = y; return out; }
       this.dir = x > this.x0 ? 1 : -1;
-      this.next = this.rowAt(this.x0);
+      // Put down within reach of the end it's leaving, it starts from that end.
+      const L = b.L, from = this.dir > 0 ? (this.x0 < this.reach ? Math.min(this.x0, 0) : this.x0)
+        : (this.x0 > L - this.reach ? Math.max(this.x0, L - 1e-6) : this.x0);
+      this.next = this.rowAt(from);
     }
     const px = this.x, py = this.y;
     const ahead = (x - px) * this.dir;
@@ -174,18 +185,35 @@ export class Stroke {
 
   breakShaving() { this.run = 0; this.current = null; }
 
+  // Where the plane goes as it's lifted: lifted within reach of the end it's heading for, it runs off
+  // that end; otherwise nowhere (null). The page moves it there itself, so the shaving and sound follow.
+  liftTo() {
+    const L = this.b.L;
+    if (this.dir > 0 && this.x < L + 1 && this.x > L - this.reach) return L + 1;
+    if (this.dir < 0 && this.x > -1 && this.x < this.reach) return -1;
+    return null;
+  }
+
   // The stroke is over. counts: whether it counts as a stroke, which is when it took a shaving.
   // skated: the plane went along the board and cut nothing (the sole rode on higher wood);
   // across: the finger went across the board rather than along it.
   end() {
-    const b = this.b;
+    const off = this.liftTo();
+    if (off !== null) this.move(off, this.y);
+    const b = this.b, L = b.L;
     const longest = this.longest * b.dx;
+    // How far onto the board it was put down, and how far short of the other end it was lifted, past
+    // what counts as off the ends (mm).
+    const fwd = this.dir >= 0;
+    const startIn = fwd ? (this.x0 < this.reach ? 0 : Math.min(L, this.x0)) : (this.x0 > L - this.reach ? 0 : Math.min(L, L - this.x0));
+    const stopShort = !this.dir ? 0 : fwd ? Math.max(0, Math.min(L, L - this.x)) : Math.max(0, Math.min(L, this.x));
     return {
       counts: this.cells > 0,
       skated: this.cells === 0 && this.travel >= 30,
       across: this.cells === 0 && this.spanY > 25 && this.spanY > this.spanX,
       straight: this.spanY < 25, // straight down the board, not from corner to corner
       from: this.from ?? 0, to: this.to ?? 0, // the stretch of the board the mouth went over (mm)
+      startIn, stopShort, y0: this.y0, y: this.y,
       dir: this.dir,
       cells: this.cells,
       volume: this.volume,

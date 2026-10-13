@@ -37,11 +37,13 @@ export const PLANS = {
   13: [['sticks'], ['midlanes'], ['passes'], ['clean']],
 };
 
-// Plays a board by its card. step: how far apart the lanes are, as a share of the blade's width.
+// Plays a board by its card. step: how far apart the lanes are, as a share of the blade's width;
+// over: how far off each end the full-length strokes start and stop (mm; less than 0 puts them down
+// on the board and lifts them before its far end, as a finger on a phone does).
 // Returns whether it was ever done (the page grades a board the moment it is), the strokes that took
 // (only strokes that cut count, as on the page) and how thick it was then, and the board as it was
 // left after any smoothing.
-export function follow(def, { step = 0.75, seed = 11, max = 200, plan = PLANS[def.no], log = null } = {}) {
+export function follow(def, { step = 0.75, over = 60, seed = 11, max = 200, plan = PLANS[def.no], log = null } = {}) {
   const b = new Board(def), rand = rng(seed);
   const { L, W, NX, NY } = b;
   let strokes = 0, tries = 0, anyway = false, doneAt = null, thickAt = null;
@@ -57,7 +59,7 @@ export function follow(def, { step = 0.75, seed = 11, max = 200, plan = PLANS[de
     if (log) log(`${tool} ${Math.round(x0)}>${Math.round(x1)} @${Math.round(y0)}${y1 !== y0 ? '>' + Math.round(y1) : ''}: ${r.cells} cells, flat ${b.flatness().toFixed(3)}, wind ${b.wind().wind.toFixed(2)}, thinnest ${b.thinnest().t.toFixed(2)}`);
     return r;
   };
-  const tool = 'jointer', t = PLANES[tool], over = 60;
+  const tool = 'jointer', t = PLANES[tool];
   // Which way to plane, read off the front edge (a panel's boards each show their own).
   const grainAt = (i, y) => (def.strips ? b.grain[i * NY + Math.max(0, Math.min(NY - 1, Math.floor(y / b.dy)))] : b.grain[i * NY + NY - 1]);
   const runsAt = y => {
@@ -87,7 +89,9 @@ export function follow(def, { step = 0.75, seed = 11, max = 200, plan = PLANS[de
       for (let n = 0; n < 30 && alive() && Math.abs(b.wind().wind) >= WIND; n++, k++) {
         const w = b.wind().wind; // > 0: the far right and near left corners are high
         const o = [0, 0.6, -0.6, 1.2, -1.2, 0.3, -0.3, 0.9, -0.9][k % 9] * t.blade * 0.5;
-        go(tool, -over, L + over, (w > 0 ? lo : hi) + o, (w > 0 ? hi : lo) + o);
+        // The same line from corner to corner however far off the ends it starts and stops.
+        const ya = (w > 0 ? lo : hi) + o, yb = (w > 0 ? hi : lo) + o, yAt = x => ya + ((yb - ya) * (x + 60)) / (L + 120);
+        go(tool, -over, L + over, yAt(-over), yAt(L + over));
       }
     },
     edges() {
@@ -132,7 +136,7 @@ export function follow(def, { step = 0.75, seed = 11, max = 200, plan = PLANS[de
           const j0 = Math.max(0, Math.floor((yy - 25) / b.dy)), j1 = Math.min(NY - 1, Math.floor((yy + 25) / b.dy));
           let torn = 0;
           for (let i = 0; i < NX; i++) for (let j = j0; j <= j1; j++) torn += b.torn[i * NY + j];
-          if (torn && b.done() && alive()) along(-60, L + 60, yy, 'smoother');
+          if (torn && b.done() && alive()) along(-over, L + over, yy, 'smoother');
           if (yy >= last) break;
         }
       }
@@ -146,12 +150,15 @@ export function follow(def, { step = 0.75, seed = 11, max = 200, plan = PLANS[de
   };
 }
 
-// The card followed with lanes at three spacings (a person's lanes are never quite even).
+// The card followed with lanes at three spacings (a person's lanes are never quite even), and once
+// more with every stroke put down 8 mm onto the board and lifted 8 mm short of the far end, the way a
+// finger on a phone starts and stops (onBoard).
 export const SPACINGS = [0.6, 0.75, 0.9];
 export function followAll(def) {
   const runs = SPACINGS.map(step => follow(def, { step }));
   const counts = runs.map(r => r.strokes).sort((a, z) => a - z);
-  return { runs, done: runs.every(r => r.done), median: counts[1] };
+  const onBoard = follow(def, { step: 0.75, over: -8 });
+  return { runs, done: runs.every(r => r.done) && onBoard.done, median: counts[1], onBoard };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
@@ -159,7 +166,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   for (const def of BOARDS) {
     if (only.length && !only.includes(def.no)) continue;
     const r = followAll(def);
-    const each = r.runs.map(x => (x.done ? x.strokes : x.culled ? 'cull' : 'stuck')).join(', ');
-    console.log(`No. ${String(def.no).padStart(2)}  ${r.done ? 'done' : 'NOT DONE'}  strokes ${each} (median ${r.median}, par ${def.par})`);
+    const each = [...r.runs, r.onBoard].map(x => (x.done ? x.strokes : x.culled ? 'cull' : 'stuck'));
+    console.log(`No. ${String(def.no).padStart(2)}  ${r.done ? 'done' : 'NOT DONE'}  strokes ${each.slice(0, 3).join(', ')} (median ${r.median}, par ${def.par}); started on the board ${each[3]}`);
   }
 }

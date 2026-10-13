@@ -101,10 +101,16 @@ try {
   await page.click('#introGo');
   assert.ok(await page.isHidden('#intro'));
   assert.equal(await page.textContent('#toast'), 'Swipe along the board, end to end, to take a stroke.', 'the first board shows what a stroke is');
-  assert.ok(await page.evaluate(() => !!window.outOfWind.scene.ghost));
-  // The demonstration starts where a finger can: on the board, above the tool tray.
-  const ghostStart = await at(page, 8, 64), tray = await page.locator('.tray').boundingBox();
-  assert.ok(ghostStart.y < tray.y - 10, `the ghost starts on the bench (${Math.round(ghostStart.y)}), not under the tray (${Math.round(tray.y)})`);
+  const ghost = await page.evaluate(() => window.outOfWind.scene.ghost);
+  assert.ok(ghost, 'a faint plane shows a stroke');
+  // The demonstration runs from just off the near end to just off the far end, starting where a finger
+  // can: on the bench, above the tool tray.
+  const ghostStart = await at(page, ghost.x0, ghost.y), nearEnd = await at(page, 0, ghost.y), tray = await page.locator('.tray').boundingBox();
+  assert.ok(ghost.x0 < 0 && ghost.x1 > 610, 'off both ends: ' + ghost.x0 + '..' + ghost.x1);
+  assert.ok(ghostStart.y > nearEnd.y + 8, 'it starts off the near end');
+  assert.ok(ghostStart.y < tray.y - 6, `the ghost starts on the bench (${Math.round(ghostStart.y)}), not under the tray (${Math.round(tray.y)})`);
+  await page.waitForTimeout(3600);
+  assert.ok(await page.evaluate(() => !!window.outOfWind.scene.ghost), 'and shows it again until you take a stroke');
   let p = await peek(page);
   assert.equal(p.no, 1);
   assert.equal(p.strokes, 0);
@@ -121,6 +127,7 @@ try {
   await touchSwipe(page, cdp, -15, 625, 64);
   p = await peek(page);
   assert.equal(p.strokes, 1, 'a swipe along the board is a stroke');
+  assert.equal(await page.evaluate(() => window.outOfWind.scene.ghost), null, 'and the demonstration stops');
   // How much of each stretch of that lane got cut, and how much pencil is left there.
   const lane = await page.evaluate(() => {
     const b = window.outOfWind.board(), j = Math.floor(64 / b.dy), n = Math.round(b.NX * 0.12);
@@ -344,6 +351,28 @@ try {
   assert.equal((await peek(page)).strokes, off0 + 1, 'plays offline');
   await ctx.setOffline(false);
   await ctx.close();
+
+  // ---------- a finger that never quite reaches the ends ----------
+  {
+    step('board 1, swiped lane by lane from 8 px onto the board to 8 px short of the far end, finishes within par');
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US' });
+    const pg = await c.newPage();
+    watch(pg, 'finger');
+    const cd = await c.newCDPSession(pg);
+    await pg.goto(base + '#1');
+    await pg.click('#introGo');
+    const { L, s } = await pg.evaluate(() => ({ L: window.outOfWind.board().L, s: window.outOfWind.scene.s }));
+    const inset = 8 / s; // 8 CSS pixels, in millimetres
+    let n = 0;
+    for (let k = 0; k < 60 && !(await peek(pg)).done; k++) {
+      await touchSwipe(pg, cd, inset, L - inset, [24, 52, 80, 103][k % 4], 12);
+      n++;
+    }
+    const q = await peek(pg);
+    assert.equal(q.done, true, `not flat after ${n} swipes: ${JSON.stringify(q)}`);
+    assert.ok(q.strokes <= q.par, `${q.strokes} strokes, over par ${q.par}`);
+    await c.close();
+  }
 
   // ---------- a laptop, and a phone on its side ----------
   for (const [label, viewport] of [['laptop', { width: 1280, height: 800 }], ['sideways', { width: 844, height: 390 }]]) {

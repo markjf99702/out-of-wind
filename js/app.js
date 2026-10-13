@@ -2,7 +2,7 @@
 // the grading, and keeping each board you've started so you can come back to it.
 
 import { Board, FLAT, WIND, readEdge } from './board.js';
-import { Stroke, PLANES } from './plane.js';
+import { Stroke, PLANES, REACH } from './plane.js';
 import { BOARDS, boardName, keepFor } from './boards.js';
 import { WOODS, rgb } from './woods.js';
 import { Scene } from './draw.js';
@@ -33,6 +33,7 @@ let flatLog = []; // flatness after each stroke, to notice when it stops coming 
 let stuckAt = -99; // the stroke when the bench last said what shape is left
 let fullSaid = false; // the first full-length shaving on a board gets a word; the rest just the sound
 let missSaid = false; // the first stroke on a board that cuts nothing gets the long explanation
+let endsSaid = false; // starting well onto the board, once a board
 
 // ---------- the rack ----------
 const unlocked = no => no === 1 || !!state.best[no - 1];
@@ -181,7 +182,7 @@ function openBoard(no, fresh = false) {
     saved = null;
   }
   strokes = 0; finished = false; failed = false; keepGoing = false; mode = 'plane';
-  flatLog = []; stuckAt = -99; fullSaid = false; missSaid = false;
+  flatLog = []; stuckAt = -99; fullSaid = false; missSaid = false; endsSaid = false;
   rand = rng(def.seed * 7919 + (state.attempts[no] || 0) * 104729 + 1);
   scene.scribbleSeed = null;
   let resumed = false;
@@ -248,10 +249,11 @@ function showIntro() {
 }
 $('introGo').addEventListener('click', () => {
   sound.wake(); ready(); closeSheets();
-  // The first time on the bench: show what a stroke is.
-  if (def.no === 1 && !state.seen.swipe && !strokes) {
-    scene.ghost = { t0: performance.now(), y: board.W / 2, tool };
-    hint('swipe', 'Swipe along the board, end to end, to take a stroke.');
+  // The first time on the bench: show what a stroke is, off one end and off the other, until you take one.
+  if (def.no === 1 && !state.seen.stroke && !state.best[1] && !strokes) {
+    const off = 18 / scene.s; // mm: just off each end, still on the bench
+    scene.ghost = { t0: performance.now(), y: board.W / 2, x0: -off, x1: board.L + off, tool };
+    hint('swipe', 'Swipe along the board, end to end, to take a stroke.', true);
     kick();
   }
 });
@@ -416,8 +418,11 @@ cv.addEventListener('pointerup', lift);
 cv.addEventListener('pointercancel', lift);
 cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && hover && activePointer == null) { hover = false; scene.plane.show = false; kick(); } });
 
+// How near an end counts as off it: about a fingertip on the screen, and never less than the model's own.
+const reach = () => Math.min(40, Math.max(REACH, 24 / scene.s));
+
 function beginStroke(p) {
-  stroke = new Stroke(board, tool, p.x, p.y, rand);
+  stroke = new Stroke(board, tool, p.x, p.y, rand, reach());
   shaving = null;
   Object.assign(scene.plane, { tool, x: p.x, y: p.y, down: true, show: true, rideZ: null });
   scene.curl = null;
@@ -464,6 +469,9 @@ function moveStroke(p) {
 }
 
 function endStroke() {
+  // Lifted near the end it was heading for, the plane runs off it.
+  const off = stroke.liftTo();
+  if (off !== null) moveStroke({ x: off, y: stroke.y });
   const r = stroke.end();
   stroke = null;
   sound.endCut(r.fullLength);
@@ -472,7 +480,11 @@ function endStroke() {
   shaving = null;
   scene.plane.down = false;
   if (!hover) scene.plane.show = false;
-  if (r.counts) strokes++;
+  if (r.counts) {
+    strokes++;
+    if (scene.ghost) scene.ghost = null; // you've taken one: no more showing
+    if (!state.seen.stroke) state.seen.stroke = 1;
+  }
   scene.refit();
   const gapBefore = scene.straight ? scene.straight.res.gap : null;
   if (scene.straight) layStraightedge({ x: scene.straight.x0, y: scene.straight.y0 }, { x: scene.straight.x1, y: scene.straight.y1 }, true);
@@ -483,6 +495,7 @@ function endStroke() {
     if (!r.counts) missed(r);
     else if (windWas >= WIND * 1.5 && lined) { toast('The winding sticks line up: out of wind.'); sound.tock(); }
     else if (gapBefore > 0.08 && scene.straight.res.gap < 0.04) { toast('No light under the straightedge.'); sound.tink(); }
+    else if (endsLeft(r)) { /* said to start off the end */ }
     else if (stuck()) { /* said what's left */ }
     else if (r.fullLength && r.fullWidth && !fullSaid) { fullSaid = true; toast('A full-length shaving.'); }
     else coach(r);
@@ -503,6 +516,30 @@ function missed(r) {
     else toast('No shaving there. That one doesn’t count.', 1800);
     missSaid = true;
   } else if (r.across) toast('Plane along the board, from end to end: across it, the plane won’t cut.', 3000);
+}
+
+// A long stroke put down well onto the board, or lifted well short of the other end, leaves that end
+// rough in its lane, and an end left standing high holds the plane up on every stroke after. Said once
+// a board, when it has happened: the end it missed is still rough-sawn and stands above where it cut.
+function endsLeft(r) {
+  if (endsSaid || r.to - r.from < board.L * 0.5) return false;
+  const f = board.fit(), NY = board.NY;
+  const res = (i, y) => {
+    const j = Math.max(0, Math.min(NY - 1, Math.floor(y / board.dy)));
+    return { rough: !board.cut[i * NY + j], z: board.top[i * NY + j] - (f.a + f.b * (board.xOf(i) - board.L / 2) + f.c * (board.yOf(j) - board.W / 2)) };
+  };
+  // gap: how far from the end the stroke began or stopped cutting; far: the far end, not the near.
+  const standsHigh = (gap, far, y) => {
+    if (gap <= 0) return false;
+    const i = far ? board.NX - 1 : 0, k = Math.max(0, Math.min(board.NX - 1, Math.floor((far ? board.L - gap : gap) / board.dx)));
+    const a = res(i, y), c = res(k, y);
+    return a.rough && a.z > c.z + 0.02;
+  };
+  const fwd = r.dir > 0;
+  if (!standsHigh(r.startIn, !fwd, r.y0) && !standsHigh(r.stopShort, fwd, r.y)) return false;
+  endsSaid = true;
+  toast('Start each stroke off the end of the board, and run it off the other: the blade only cuts from where you put the plane down.', 5200);
+  return true;
 }
 
 // What the first boards say as you go, once each.
