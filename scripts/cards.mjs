@@ -5,11 +5,14 @@
 //
 // A plan is the card's opening and then the finish every board shares: full-length passes lane by
 // lane, with the grain, and before each round the straightedge along every lane, with short strokes
-// wherever it rocks on a high stretch. Then fine smoother passes over any tear-out.
+// wherever it rocks on a high stretch. Then fine smoother passes over any tear-out. All the while they
+// listen to the bench: when it says what shape is left and where the face stands highest, they plane
+// there, and when it says the face is nearly flat and where it stands highest, a stroke there with
+// the smoother.
 //   node scripts/cards.mjs            every board, with three lane spacings
 //   node scripts/cards.mjs 3 7        only boards 3 and 7
 
-import { Board, WIND, readEdge } from '../js/board.js';
+import { Board, FLAT, WIND, readEdge } from '../js/board.js';
 import { BOARDS } from '../js/boards.js';
 import { Stroke, PLANES } from '../js/plane.js';
 import { rng } from '../js/rng.js';
@@ -19,7 +22,9 @@ import { rng } from '../js/rng.js';
 //   edges: the edge lanes, hanging off, until a straightedge across shows no light in the middle
 //   midlanes: the middle lanes until a straightedge across stops rocking on the middle
 //   middle a b n: short strokes from a to b (fractions along) on every lane, n times over
-//   passes [any]: the finish (any: interlocked or curly, where no way is the right way)
+//   passes [any] [wind]: the finish (any: interlocked or curly, where no way is the right way; wind:
+//     'sticks' to go corner to corner whenever the sticks still show wind, or 'bench' to leave it to
+//     the bench's notes)
 //   clean: the smoother over the lanes with tear-out
 export const PLANS = {
   1: [['passes']],
@@ -34,7 +39,7 @@ export const PLANS = {
   10: [['sticks'], ['passes'], ['clean']],
   11: [['sticks'], ['midlanes'], ['passes'], ['clean']],
   12: [['passes', 'any'], ['clean']],
-  13: [['sticks'], ['midlanes'], ['passes'], ['clean']],
+  13: [['passes', '', 'bench'], ['clean']],
 };
 
 // Plays a board by its card. step: how far apart the lanes are, as a share of the blade's width;
@@ -46,7 +51,8 @@ export const PLANS = {
 export function follow(def, { step = 0.75, over = 60, seed = 11, max = 200, plan = PLANS[def.no], log = null } = {}) {
   const b = new Board(def), rand = rng(seed);
   const { L, W, NX, NY } = b;
-  let strokes = 0, tries = 0, anyway = false, doneAt = null, thickAt = null;
+  let strokes = 0, tries = 0, anyway = false, doneAt = null, thickAt = null, stuckAt = -99;
+  const flatLog = []; // how flat after each stroke that cut, as the bench keeps it
   const alive = () => b.thinnest().t >= b.tmin && strokes < max && tries < max * 2;
   const go = (tool, x0, x1, y0, y1 = y0) => {
     const s = new Stroke(b, tool, x0, y0, rand);
@@ -54,7 +60,7 @@ export function follow(def, { step = 0.75, over = 60, seed = 11, max = 200, plan
     for (let k = 1; k <= n; k++) s.move(x0 + ((x1 - x0) * k) / n, y0 + ((y1 - y0) * k) / n);
     const r = s.end();
     tries++;
-    if (r.counts) strokes++;
+    if (r.counts) { strokes++; flatLog.push(b.flatness()); }
     if (doneAt === null && b.done()) { doneAt = strokes; thickAt = b.thinnest().t; } // graded here, as on the page
     if (log) log(`${tool} ${Math.round(x0)}>${Math.round(x1)} @${Math.round(y0)}${y1 !== y0 ? '>' + Math.round(y1) : ''}: ${r.cells} cells, flat ${b.flatness().toFixed(3)}, wind ${b.wind().wind.toFixed(2)}, thinnest ${b.thinnest().t.toFixed(2)}`);
     return r;
@@ -83,6 +89,27 @@ export function follow(def, { step = 0.75, over = 60, seed = 11, max = 200, plan
   for (let y = lo; y < hi - 1; y += t.blade * step) lanes.push(y);
   lanes.push(hi);
   const across = xf => b.straightedge(xf * L, 0.5, xf * L, W - 0.5);
+  // The bench's notes, decided the way the page decides them (stuck() and nearly() in js/app.js), and
+  // what a person does on hearing one: plane where the face stands highest, over the third of the
+  // board it's in, in its lane and the lanes either side (nearly flat: one stroke there, with the
+  // smoother). Returns whether there was a note to act on.
+  const atHighest = (tl, spread) => {
+    const h = b.highest(), ts = PLANES[tl], fx = h.x / L;
+    const [xa, xb] = fx < 1 / 3 ? [-over, 0.45 * L] : fx > 2 / 3 ? [0.55 * L, L + over] : [0.25 * L, 0.75 * L];
+    for (const dy of spread ? [0, -ts.blade * 0.6, ts.blade * 0.6] : [0]) along(xa, xb, Math.max(ts.blade / 2 - 6, Math.min(W - ts.blade / 2 + 6, h.y + dy)), tl);
+  };
+  const listened = () => {
+    const fl = b.flatness(), n = flatLog.length, now = flatLog[n - 1];
+    if (!b.roughLeft() && fl > FLAT && fl <= 1.4 * FLAT) {
+      const before = tries;
+      atHighest('smoother', false);
+      return tries > before;
+    }
+    if (n < 9 || now <= 1.4 * FLAT || now < flatLog[n - 9] * 0.9 || strokes - stuckAt < 10 || b.roughLeft() > b.cut.length * 0.25) return false;
+    stuckAt = strokes;
+    atHighest(tool, true);
+    return true;
+  };
   let k = 0;
   const steps = {
     sticks() {
@@ -111,12 +138,13 @@ export function follow(def, { step = 0.75, over = 60, seed = 11, max = 200, plan
     middle(a, z, rounds) {
       for (let n = 0; n < rounds && alive(); n++) for (const y of lanes) along(a * L, z * L, y);
     },
-    passes(any) {
-      if (any) anyway = true; // and for the smoother after, too
+    passes(any, wind = 'sticks') {
+      if (any === 'any') anyway = true; // and for the smoother after, too
       let best = b.flatness(), since = 0;
       for (let q = 0; alive() && !b.done(); q++) {
+        if (listened()) continue;
         if (q % lanes.length === 0) {
-          if (Math.abs(b.wind().wind) >= WIND * 1.5) steps.sticks();
+          if (wind === 'sticks' && Math.abs(b.wind().wind) >= WIND * 1.5) steps.sticks();
           // The straightedge along each lane: where it rocks on a high stretch, short strokes there.
           for (const y of lanes) {
             const r = readEdge(b.straightedge(0.5, y, L - 0.5, y));

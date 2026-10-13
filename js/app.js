@@ -643,15 +643,17 @@ function placeWords(x, y) {
 }
 
 // When eight strokes haven't brought the face any nearer flat, say what shape is left and what takes
-// it out; and again ten strokes later if it still hasn't moved.
+// it out, and where it stands highest; and again ten strokes later if it still hasn't moved.
+// scripts/cards.mjs listens for this note the same way: keep the two in step.
 function stuck() {
   const n = flatLog.length, now = flatLog[n - 1];
   if (n < 9 || now <= 1.4 * FLAT || now < flatLog[n - 9] * 0.9 || strokes - stuckAt < 10) return false;
   if (board.roughLeft() > board.cut.length * 0.25) return false; // still taking the saw marks off: too soon to say
   const sh = board.shape(), bow = Math.abs(sh.bow), cup = Math.abs(sh.cup), twist = 2 * Math.abs(sh.twist);
+  const h = board.highest(), where = placeWords(h.x, h.y);
   let text;
   if (Math.max(bow, cup, twist) < now * 0.3) {
-    text = 'What’s left isn’t one shape but high patches. Lay the straightedge along and across, plane where it touches, and stop where the light starts.';
+    text = `What’s left isn’t one shape but high patches, the highest ${where}. Plane there, then lay the straightedge along and across to find the next, and stop where the light starts.`;
   } else if (twist >= bow && twist >= cup) {
     text = `Still in wind. Straight passes take an even shaving off a twisted face: plane the high corners, ${sh.twist > 0 ? 'far right and near left' : 'far left and near right'}.`;
   } else if (cup >= bow) {
@@ -662,6 +664,7 @@ function stuck() {
       : 'Still crowned. Full-length strokes just follow it down: take short strokes on the high middle and leave the ends.'
         + (turnsMidway() ? ' The grain turns around there, so take them with the smoother: set fine, it gets through without tearing.' : '');
   }
+  if (!text.startsWith('What’s left')) text += ` It stands highest ${where}.`;
   stuckAt = strokes;
   toast(text, 6500);
   return true;

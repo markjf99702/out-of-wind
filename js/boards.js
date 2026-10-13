@@ -78,8 +78,8 @@ export const BOARDS = [
       { w: 140, wood: 'maple', grain: -1, cup: -0.1, step: 0.12 },
       { w: 140, wood: 'cherry', grain: 1, cup: 0.12, step: -0.06 },
     ],
-    title: 'The tabletop', t0: 20.29, par: 96, best: 19.75,
-    note: 'Three boards glued up into the top itself, with the middle one turned end for end and standing a little proud.',
+    title: 'The tabletop', t0: 20.29, par: 129, best: 19.75,
+    note: 'Three boards glued up into the top itself, walnut, maple and cherry, with the middle one turned end for end, so its grain runs the other way, and standing a little proud. Take full-length passes lane by lane with the jointer, each board its own way, and plane where the bench says the face stands highest. Then the smoother over any tear-out.',
   },
 ];
 

@@ -218,11 +218,12 @@ test('board 3 is in wind and a little hollow, and nothing else: no crown for its
 
 test('each board’s card can be followed to the finish by someone who sees only what the page shows', () => {
   // scripts/cards.mjs plays each board the way its card says, judging the face only by the sticks,
-  // the straightedge's light, the rough patches, the grain on the edge and tear-out, with lanes at
-  // three spacings. Every board up to the panel has to come out flat, above the line, within par.
-  // Once more, every stroke is put down 8 mm onto the board and lifted 8 mm short of the other end,
-  // as a finger does, and that has to finish too, in no more strokes than the lanes off the ends took.
-  for (const def of BOARDS.filter(d => !d.panel)) {
+  // the straightedge's light, the rough patches, the grain on the edge, tear-out and the bench's notes,
+  // with lanes at three spacings. Every board, the panel too, has to come out flat, above the line,
+  // within par. Once more, every stroke is put down 8 mm onto the board and lifted 8 mm short of the
+  // other end, as a finger does, and that has to finish too, in no more strokes than the lanes off the
+  // ends took.
+  for (const def of BOARDS) {
     const r = followAll(def);
     for (const run of [...r.runs, r.onBoard]) {
       assert.equal(run.culled, false, `board ${def.no}: through the line following its card`);
