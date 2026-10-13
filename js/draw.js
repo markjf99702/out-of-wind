@@ -14,6 +14,7 @@ import { rng } from './rng.js';
 
 const LIGHT = norm([0.55, -0.5, 0.67]); // raking light from the far end and the top edge, low
 const RELIEF = 48; // how much the shading exaggerates slopes
+const LIGHT_GAP = 'rgba(255,248,222,.95)'; // light showing under a sole or a straightedge
 
 function norm(v) { const l = Math.hypot(...v); return v.map(c => c / l); }
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -53,8 +54,11 @@ export class Scene {
 
   layout() {
     const b = this.board, BU = this.BU, BV = this.BV;
-    const lh = clamp(Math.round(BV * 0.2), 64, 104); // the side view's height
     const eh = 13, gap = 10, pad = this.portrait ? 10 : 14, ends = 26;
+    // The side view gets whatever room is left across once the board is as long as it can be (with
+    // some left for the shavings), between a fifth and three-tenths of the bench.
+    const spare = BV - b.W * ((BU - 2 * ends - 8) / b.L) - eh - gap - pad - 70;
+    const lh = clamp(Math.round(Math.max(BV * 0.2, Math.min(spare, BV * 0.3))), 64, 120); // the side view's height
     const s = Math.min((BU - 2 * ends - 8) / b.L, (BV - lh - eh - gap - pad - 30) / b.W);
     this.s = s;
     this.bw = b.L * s; this.bh = b.W * s;
@@ -672,13 +676,15 @@ export class Scene {
     let zTop = -Infinity, zBot = Infinity;
     for (let q = 0; q < n; q++) { zTop = Math.max(zTop, zs[q]); zBot = Math.min(zBot, gz[q]); }
     const range = Math.max(0.5, zTop - zBot + 0.15);
-    const mag = clamp((H - 22) / range, 14, 110); // pixels per millimetre, up and down
-    const vy = z => V + 9 + (zTop - z) * mag;
+    const air = 22; // room above the face for the plane's body
+    const mag = clamp((H - air - 13) / range, 14, 110); // pixels per millimetre, up and down
+    const vy = z => V + air + (zTop - z) * mag;
     // The wood.
+    // The wood in section, in its own shade, so light under anything resting on it shows.
     const wood = b.wood(Math.floor(clamp(y, 0, b.W - 1) / b.dy)), c = rgb(wood.early);
     const g = ctx.createLinearGradient(0, V, 0, V + H);
-    g.addColorStop(0, `rgb(${c[0]},${c[1]},${c[2]})`);
-    g.addColorStop(1, `rgb(${c[0] * 0.45 | 0},${c[1] * 0.4 | 0},${c[2] * 0.36 | 0})`);
+    g.addColorStop(0, `rgb(${c[0] * 0.72 | 0},${c[1] * 0.66 | 0},${c[2] * 0.58 | 0})`);
+    g.addColorStop(1, `rgb(${c[0] * 0.36 | 0},${c[1] * 0.31 | 0},${c[2] * 0.27 | 0})`);
     ctx.fillStyle = g;
     ctx.beginPath();
     ctx.moveTo(xu(0), V + H);
@@ -686,13 +692,13 @@ export class Scene {
     ctx.lineTo(xu(n - 1), V + H);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = 'rgba(255,245,225,.65)';
-    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = `rgba(${Math.min(255, c[0] * 1.1) | 0},${Math.min(255, c[1] * 1.08) | 0},${Math.min(255, c[2] * 1.04) | 0},.9)`;
+    ctx.lineWidth = 1.3;
     ctx.beginPath();
     for (let q = 0; q < n; q++) q ? ctx.lineTo(xu(q), vy(zs[q])) : ctx.moveTo(xu(q), vy(zs[q]));
     ctx.stroke();
     // The gauge line: three-quarters of an inch up from the underside.
-    ctx.strokeStyle = 'rgba(40,20,12,.9)';
+    ctx.strokeStyle = 'rgba(255,240,215,.7)';
     ctx.lineWidth = 1;
     ctx.setLineDash([5, 3]);
     ctx.beginPath();
@@ -706,44 +712,106 @@ export class Scene {
     ctx.font = lab.font; ctx.fillStyle = lab.color; ctx.textBaseline = 'top';
     ctx.fillText(title.toUpperCase(), U + 4, V + H - 15);
     ctx.textAlign = 'right';
-    ctx.fillStyle = 'rgba(70,40,25,.95)';
+    ctx.fillStyle = 'rgba(255,240,215,.8)';
     ctx.fillText(this.lineLabel || 'gauge line', U + bw - 4, Math.min(V + H - 15, vy(gz[n - 1]) + 3));
     ctx.restore();
 
     if (line && line.res) {
       // The straightedge resting on it, and the light underneath.
       const ra = vy(line.res.z0), rb = vy(line.res.z1);
-      ctx.fillStyle = 'rgba(255,236,170,.85)';
+      ctx.save();
+      ctx.fillStyle = LIGHT_GAP;
+      ctx.shadowColor = 'rgba(255,230,150,.9)'; ctx.shadowBlur = 6;
       ctx.beginPath();
       ctx.moveTo(xu(0), ra);
       for (let q = 0; q < n; q++) ctx.lineTo(xu(q), Math.max(mix(ra, rb, q / (n - 1)), vy(zs[q])));
       ctx.lineTo(xu(n - 1), rb);
       ctx.closePath();
       ctx.fill();
+      ctx.restore();
       ctx.strokeStyle = '#c8ccd0';
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(xu(0), ra - 1.5); ctx.lineTo(xu(n - 1), rb - 1.5); ctx.stroke();
     }
     if (L.mode === 'plane' && this.plane.down && this.plane.rideZ != null && along) {
-      // The plane's sole riding on the high spots, and its blade.
-      const p = this.plane, t = PLANES[p.tool], s = this.s;
-      const ux = U + p.x * s, half = (t.len / 2) * s;
-      const zr = vy(p.rideZ), slope = (p.rideSlope || 0) * mag / s;
-      const a = zr - slope * -half, c = zr - slope * half;
-      // The plane's body sits above its sole, which rests on the high spots.
-      ctx.fillStyle = 'rgba(20,21,24,.92)';
-      ctx.beginPath();
-      ctx.moveTo(ux - half, a); ctx.lineTo(ux + half, c); ctx.lineTo(ux + half, c - 9); ctx.lineTo(ux - half, a - 9);
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = '#c3c8cd';
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(ux - half, a); ctx.lineTo(ux + half, c); ctx.stroke();
-      // The blade, standing proud of the sole by the depth of cut.
-      ctx.fillStyle = '#eef0f2';
-      ctx.beginPath();
-      ctx.moveTo(ux - 3, zr - 1); ctx.lineTo(ux + 3, zr - 1); ctx.lineTo(ux, zr + Math.max(2.5, t.depth * mag)); ctx.closePath();
-      ctx.fill();
+      const faceAt = u => {
+        const f = clamp((u - ua) / (ub - ua), 0, 1) * (n - 1), q = Math.min(n - 2, Math.floor(f));
+        return vy(zs[q] + (zs[q + 1] - zs[q]) * (f - q));
+      };
+      this.drawSidePlane(ctx, ua, ub, vy, mag, faceAt);
     }
+  }
+
+  // The plane from the side, resting on the high spots under its sole, with light wherever the face
+  // falls away beneath it, and the iron standing proud of the sole by the depth of cut. Heights are
+  // magnified a great deal more than lengths, so the sole's tilt and the gaps under it show.
+  drawSidePlane(ctx, ua, ub, vy, mag, faceAt) {
+    const p = this.plane, t = PLANES[p.tool], s = this.s;
+    const ux = this.u0 + p.x * s, half = (t.len / 2) * s, dir = p.dir || 1;
+    const zr = vy(p.rideZ), slope = ((p.rideSlope || 0) * mag) / s;
+    const soleAt = u => zr - slope * (u - ux);
+    // Light under the sole.
+    const u0 = Math.max(ux - half, ua), u1 = Math.min(ux + half, ub);
+    if (u1 > u0) {
+      ctx.save();
+      ctx.fillStyle = LIGHT_GAP;
+      ctx.shadowColor = 'rgba(255,230,150,.9)'; ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(u0, soleAt(u0));
+      ctx.lineTo(u1, soleAt(u1));
+      const steps = Math.max(8, Math.ceil((u1 - u0) / 2));
+      for (let k = steps; k >= 0; k--) { const u = u0 + ((u1 - u0) * k) / steps; ctx.lineTo(u, Math.max(soleAt(u), faceAt(u))); }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.save();
+    ctx.translate(ux, zr);
+    ctx.rotate(-Math.atan(slope));
+    ctx.scale(dir, 1); // the toe leads
+    // The casting: a low steel body over the sole, its sides machined bright.
+    const bh = 6;
+    const g = ctx.createLinearGradient(0, -bh, 0, 0);
+    g.addColorStop(0, '#c2c7cc'); g.addColorStop(0.45, '#8d939a'); g.addColorStop(1, '#5f656c');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(-half, 0); ctx.lineTo(half, 0); ctx.lineTo(half - 3, -bh); ctx.lineTo(-half + 3, -bh); ctx.closePath();
+    ctx.fill();
+    // The tote at the heel and the knob at the toe, in rosewood.
+    const tl = Math.min(34, half * 0.35);
+    ctx.fillStyle = '#93432a';
+    ctx.beginPath();
+    ctx.moveTo(-half + 6, -bh); ctx.lineTo(-half + 6 + tl * 0.25, -bh - 10); ctx.lineTo(-half + 6 + tl * 0.55, -bh - 10);
+    ctx.lineTo(-half + 6 + tl, -bh); ctx.closePath();
+    ctx.fill();
+    const kx = half - Math.min(22, half * 0.25);
+    roundRect(ctx, kx - 5, -bh - 6, 10, 6, 3);
+    ctx.fill();
+    // The iron, bedded at an angle behind the mouth, and its edge just below the sole.
+    ctx.fillStyle = '#d9dde1';
+    ctx.beginPath();
+    ctx.moveTo(-1.5, 0); ctx.lineTo(1.5, 0); ctx.lineTo(-6, -bh - 9); ctx.lineTo(-9.5, -bh - 9); ctx.closePath();
+    ctx.fill();
+    const edge = Math.max(2.2, t.depth * mag);
+    ctx.beginPath();
+    ctx.moveTo(-1.6, -0.5); ctx.lineTo(1.6, -0.5); ctx.lineTo(0.4, edge); ctx.lineTo(-0.4, edge); ctx.closePath();
+    ctx.fill();
+    // A shaving rising out of the mouth while it cuts.
+    if (this.curl) {
+      const c = this.curl.color, r = clamp(3 + Math.sqrt(this.curl.len) * 0.35, 3, 9);
+      ctx.strokeStyle = `rgba(${c[0]},${c[1]},${c[2]},.95)`;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(1, -1);
+      ctx.quadraticCurveTo(3, -bh - 2, 3 + r, -bh - 2 - r);
+      ctx.arc(3 + r * 0.4, -bh - 2 - r, r * 0.6, 0, Math.PI * 1.6, true);
+      ctx.stroke();
+    }
+    // The sole itself, bright where it bears on the wood.
+    ctx.strokeStyle = '#eef1f3';
+    ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(-half, 0); ctx.lineTo(half, 0); ctx.stroke();
+    ctx.restore();
   }
 
   // Sighting down the winding sticks from the near end. You crouch until the near stick's top edge
