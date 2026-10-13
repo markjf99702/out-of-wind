@@ -1,12 +1,17 @@
 // The parts that don't need a browser:  node --test test/unit.test.mjs
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile, readdir } from 'node:fs/promises';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Board, restLine, FLAT, TABLETOP } from '../js/board.js';
 import { Stroke, PLANES, stroke } from '../js/plane.js';
 import { BOARDS } from '../js/boards.js';
 import { WOODS } from '../js/woods.js';
 import { solve, aim } from '../js/solver.js';
 import { rng } from '../js/rng.js';
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // A clean test board: no saw marks, no wander, so only the shape we give it.
 const plain = extra => new Board({ L: 760, W: 180, wood: 'pine', t0: 22, seed: 5, rough: 0, vary: 0, wander: 0, ...extra });
@@ -167,4 +172,14 @@ test('the solver flattens board 1 at its par and its best', () => {
   assert.equal(r.par, BOARDS[0].par);
   assert.ok(Math.abs(r.thinnest - BOARDS[0].best) < 0.02, 'thinnest ' + r.thinnest);
   assert.ok(b.flatness() <= FLAT);
+});
+
+test('the offline copy lists every file the page needs, and nothing else', async () => {
+  const sw = await readFile(join(root, 'sw.js'), 'utf8');
+  const listed = new Set([...sw.matchAll(/'([^']+\.(?:js|css|woff2|svg|html|webmanifest))'/g)].map(m => m[1]));
+  const page = (await readdir(join(root, 'js'))).filter(f => f.endsWith('.js') && f !== 'solver.js').map(f => 'js/' + f);
+  const fonts = (await readdir(join(root, 'fonts'))).map(f => 'fonts/' + f);
+  const needed = [...page, ...fonts, 'css/app.css', 'index.html', 'icon.svg', 'manifest.webmanifest'];
+  for (const f of needed) assert.ok(listed.has(f), `sw.js doesn't list ${f}`);
+  for (const f of listed) assert.ok(needed.includes(f), `sw.js lists ${f}, which the page doesn't load`);
 });

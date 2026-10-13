@@ -74,7 +74,7 @@ export const BOARDS = [
   },
 ];
 
-// A board's name as the page shows it: "No. 7 · Cherry".
+// A board's name as the page shows it: "No. 7 · Cherry", "No. 13 · Panel".
 export function boardName(b, woods) {
-  return 'No. ' + b.no + ' · ' + (b.panel ? 'Walnut, maple and cherry' : woods[b.wood].name);
+  return 'No. ' + b.no + ' · ' + (b.panel ? 'Panel' : woods[b.wood].name);
 }

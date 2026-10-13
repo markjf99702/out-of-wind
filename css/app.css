@@ -84,7 +84,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brass); outline
 
 /* ---------- the bench ---------- */
 .bench {
-  position: fixed; inset: 0; display: grid; grid-template-rows: auto 1fr auto; background: var(--bench);
+  position: fixed; inset: 0; display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); background: var(--bench);
   user-select: none; -webkit-user-select: none;
 }
 .hud {
@@ -125,11 +125,13 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brass); outline
 .group { display: flex; gap: 2px; }
 .group.planes { padding-right: 6px; border-right: 1px solid var(--line); }
 .tool {
-  width: 62px; border: 0; border-radius: 10px; background: transparent; padding: 5px 2px 4px;
+  flex: none; width: 54px; border: 0; border-radius: 10px; background: transparent; padding: 5px 1px 4px;
   display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--ink2);
 }
+.tool#edgeBtn { width: 72px; }
 .tool svg { width: 42px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .tool span { font-size: 12.5px; line-height: 1.1; white-space: nowrap; }
+@media (min-width: 390px) { .tool { width: 57px; } .tool#edgeBtn { width: 74px; } }
 .tool:active { background: rgba(243, 233, 216, .08); }
 .tool[aria-checked="true"], .tool[aria-pressed="true"] { color: #22180f; background: var(--brass); }
 
@@ -182,7 +184,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brass); outline
   .hud .name strong { font-size: 19px; }
   .stats { gap: 24px; }
   .stat b { font-size: 19px; }
-  .tool { width: 92px; padding: 7px 4px 6px; }
+  .tool, .tool#edgeBtn { width: 92px; padding: 7px 4px 6px; }
   .tool svg { width: 48px; height: 24px; }
   .tool span { font-size: 14px; }
   .group { gap: 6px; }
@@ -196,7 +198,7 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brass); outline
   .tray { grid-row: 2; grid-column: 2; flex-direction: column; justify-content: center; padding: 6px calc(6px + env(safe-area-inset-right, 0px)) 6px 6px; border-top: 0; border-left: 1px solid rgba(0, 0, 0, .35); }
   .group { flex-direction: column; }
   .group.planes { border-right: 0; padding-right: 0; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
-  .tool { width: 74px; padding: 3px 2px; }
+  .tool, .tool#edgeBtn { width: 78px; padding: 3px 2px; }
   .tool svg { height: 18px; }
 }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
