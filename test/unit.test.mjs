@@ -11,6 +11,7 @@ import { WOODS } from '../js/woods.js';
 import { solve, aim } from '../js/solver.js';
 import { rng } from '../js/rng.js';
 import { followAll } from '../scripts/cards.mjs';
+import * as U from '../js/units.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -243,6 +244,25 @@ test('the shape that’s left is named: bow, cup or twist', () => {
   near(sh.twist, 0.5, 'twist');
   assert.ok(plain({ twist: 0.5 }).wind().wind > 0, 'the same sign the winding sticks give');
   near(plain({}).shape().bow, 0, 'flat');
+});
+
+test('how flat a face is reads finer than the aim, and never reads as the aim until it is flat', () => {
+  const num = t => parseFloat(t);
+  for (const unit of ['in', 'mm']) {
+    U.setUnit(unit);
+    const aim = U.flat(FLAT, -1);
+    for (let k = 1; k <= 400; k++) {
+      const over = FLAT + k * 0.0002, under = FLAT - k * 0.0002; // up to 0.08 mm either side
+      assert.ok(num(U.flat(over, 1)) > num(aim), `${unit}: ${over.toFixed(4)} mm reads ${U.flat(over, 1)}, aim ${aim}`);
+      if (under >= 0) assert.ok(num(U.flat(under, -1)) <= num(aim), `${unit}: ${under.toFixed(4)} mm reads ${U.flat(under, -1)}`);
+    }
+  }
+  U.setUnit('in');
+  assert.equal(U.flat(FLAT, -1), '0.0059″');
+  assert.equal(U.flat(0.164, 1), '0.0065″', 'the playtest’s 0.164 mm no longer reads 0.006″ under “aim 0.006″”');
+  U.setUnit('mm');
+  assert.equal(U.flat(FLAT, -1), '0.150 mm');
+  assert.equal(U.flat(0.1504, 1), '0.151 mm');
 });
 
 test('flatness and thickness', () => {

@@ -19,6 +19,15 @@ export function small(mm) {
   return Math.max(0, mm).toFixed(2) + ' mm';
 }
 
+// How far from flat, a place finer than small(), since the last few thou are where a board is won:
+// "0.0062″" or "0.164 mm". side rounds it down (-1) or up (+1), so a face that isn't flat yet never
+// reads the same as what flat is, and one that is never reads more.
+export function flat(mm, side = 0) {
+  const inch = unit === 'in', k = inch ? 1e4 : 1e3, v = (Math.max(0, mm) / (inch ? IN : 1)) * k;
+  const n = side > 0 ? Math.ceil(v - 1e-6) : side < 0 ? Math.floor(v + 1e-6) : Math.round(v);
+  return inch ? (n / k).toFixed(4) + '″' : (n / k).toFixed(3) + ' mm';
+}
+
 // A board's size: "30 × 6½ in" or "762 × 165 mm".
 export function size(L, W) {
   if (unit === 'mm') return Math.round(L) + ' × ' + Math.round(W) + ' mm';

@@ -667,7 +667,7 @@ function check() {
 function evaluate() {
   const th = board.thinnest().t, spots = board.tornSpots(), fl = board.flatness();
   const marks = [
-    { ok: true, label: 'Flat', v: 'within ' + U.small(fl) },
+    { ok: true, label: 'Flat', v: 'within ' + U.flat(fl, -1) },
     { ok: th >= keepFor(def), label: th >= keepFor(def) ? 'Thickness kept' : 'Thickness', v: th >= keepFor(def) ? U.thick(th) : U.thick(th) + ', under ' + U.thick(keepFor(def)) },
     { ok: spots === 0, label: spots ? 'Tear-out' : 'No tear-out', v: spots ? spots + (spots === 1 ? ' spot' : ' spots') : '' },
     { ok: strokes <= def.par, label: 'Within par', v: strokes + ' of ' + def.par },
@@ -734,8 +734,9 @@ function updateHud() {
   $('par').textContent = 'par ' + def.par;
   $('strokes').parentElement.classList.toggle('warn', strokes > def.par);
   const fl = board.flatness(), rough = board.roughLeft();
-  $('flat').textContent = U.small(fl);
-  $('flatSub').textContent = rough ? 'rough ' + Math.ceil((rough / board.cut.length) * 100) + '%' : fl <= FLAT ? 'flat' : 'aim ' + U.small(FLAT);
+  // A face that isn't flat yet reads above the aim, rounded up; one that is, rounded down.
+  $('flat').textContent = U.flat(fl, fl <= FLAT ? -1 : 1);
+  $('flatSub').textContent = rough ? 'rough ' + Math.ceil((rough / board.cut.length) * 100) + '%' : fl <= FLAT ? 'flat' : 'aim ' + U.flat(FLAT, -1);
   $('flat').parentElement.classList.toggle('ok', !rough && fl <= FLAT);
   const th = board.thinnest().t, margin = th - board.tmin, keep = keepFor(def);
   $('thick').textContent = U.thick(th);
