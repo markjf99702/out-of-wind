@@ -515,9 +515,10 @@ export class Scene {
     // It falls off beside the board somewhere along the stretch it came from.
     const back = Math.min(curl.len, 400) * s * (p.dir || 1);
     const room = Math.max(12, this.v0 - 16);
+    // Clear of the bench's edges, so a whole curl shows.
     const to = {
-      u: clamp(from.u - back * (0.2 + r() * 0.6) + (r() - 0.5) * 30, 12, this.BU - 12),
-      v: clamp(this.v0 - 10 - Math.pow(r(), 0.7) * room, 8, Math.max(10, this.v0 - 6)),
+      u: clamp(from.u - back * (0.2 + r() * 0.6) + (r() - 0.5) * 30, 34, this.BU - 34),
+      v: clamp(this.v0 - 14 - Math.pow(r(), 0.7) * room, 22, Math.max(24, this.v0 - 10)),
     };
     this.flying.push({ ...curl, from, to, t0: performance.now(), rot0: r() * 6.28, spin: (r() - 0.5) * 6 });
   }
@@ -949,14 +950,13 @@ function drawCurl(ctx, t, curl, now) {
   ctx.restore();
 }
 
-// A loose shaving or chip lying on (or flying to) the bench. A shaving is drawn the way you'd draw
-// one: a curl of pale ribbon with a darker edge, bigger and looser the longer it ran.
+// A loose shaving or chip lying on (or flying to) the bench.
 function drawLoose(ctx, f, u, v, rot, s) {
   const c = f.color;
-  ctx.save();
-  ctx.translate(u, v);
-  ctx.rotate(rot);
   if (f.chip) {
+    ctx.save();
+    ctx.translate(u, v);
+    ctx.rotate(rot);
     ctx.fillStyle = `rgb(${c[0] * 0.85 | 0},${c[1] * 0.8 | 0},${c[2] * 0.75 | 0})`;
     ctx.beginPath();
     ctx.moveTo(-f.len * s * 0.5, 0); ctx.lineTo(0, -f.w * s * 0.25); ctx.lineTo(f.len * s * 0.5, f.w * s * 0.08); ctx.lineTo(0, f.w * s * 0.25);
@@ -964,33 +964,67 @@ function drawLoose(ctx, f, u, v, rot, s) {
     ctx.restore();
     return;
   }
+  drawShaving(ctx, f, u, v, rot, s);
+}
+
+// A shaving: a thin ribbon, straight where it left the iron and curling tighter toward its end,
+// twisting as it goes, so it's wide where its face is toward you and a thin line where it turns
+// edge-on. The outside of the curl is pale, the inside a little darker. Longer strokes make longer
+// ribbons that roll up further; the jack's narrow, deep cut makes narrower ones.
+function drawShaving(ctx, f, u, v, rot, s) {
+  const c = f.color;
   const seed = f.seed ?? (f.seed = Math.random() * 1000);
-  const scale = 0.55 + s * 0.5;
-  const R = clamp(5 + Math.sqrt(f.len) * 0.42, 5, 17) * scale; // outer radius of the curl
-  const turns = clamp(1.1 + f.len / 300, 1.1, 2.4);
-  const lw = clamp(f.w * s * 0.1, 2.2, 6) * (0.8 + 0.2 * scale); // the ribbon, seen mostly edge-on
-  const tail = clamp(f.len * s * 0.02, 0, 9);
-  const squash = 0.75 + (seed % 0.25);
-  const path = () => {
+  const rr = k => { const x = Math.sin(seed * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
+  const scale = 0.6 + s * 0.45;
+  const Lpx = clamp(12 + Math.sqrt(f.len) * 2.9, 14, 92) * scale; // the ribbon's length on the bench
+  const W = clamp(f.w * s * 0.12, 3, 8) * scale * (0.85 + 0.3 * rr(1)); // and its width
+  const turns = clamp(0.6 + f.len / 500, 0.6, 1.7) * (0.85 + 0.3 * rr(2));
+  const total = turns * Math.PI * 2, p = 1.6 + rr(3) * 0.6;
+  const twist = (0.5 + rr(4) * 1.1) * Math.PI, ph = rr(5) * Math.PI;
+  const n = 40, ds = Lpx / n, P = [];
+  let x = 0, y = 0;
+  for (let k = 0; k <= n; k++) {
+    const t = k / n, th = total * Math.pow(t, p);
+    const tw = Math.cos(twist * t + ph); // its face toward you (±1) or edge-on (0)
+    const start = Math.min(1, t * 9); // torn off narrow where the stroke began
+    P.push({ x, y, th, hw: (W / 2) * (0.18 + 0.82 * Math.abs(tw)) * (1 - 0.3 * t) * (0.35 + 0.65 * start), side: tw >= 0 });
+    x += Math.cos(th) * ds; y += Math.sin(th) * ds;
+  }
+  let mx = 0, my = 0;
+  for (const q of P) { mx += q.x; my += q.y; }
+  mx /= P.length; my /= P.length;
+  const side = (k, sgn) => [P[k].x - Math.sin(P[k].th) * P[k].hw * sgn, P[k].y + Math.cos(P[k].th) * P[k].hw * sgn];
+  const rgba = (col, a) => `rgba(${col[0] | 0},${col[1] | 0},${col[2] | 0},${a})`;
+  const light = [Math.min(255, c[0] * 1.07 + 18), Math.min(255, c[1] * 1.05 + 16), Math.min(255, c[2] * 1.02 + 12)];
+  const back = [c[0] * 0.86, c[1] * 0.8, c[2] * 0.72];
+  ctx.save();
+  ctx.translate(u, v);
+  ctx.rotate(rot);
+  ctx.translate(-mx, -my);
+  ctx.lineJoin = 'round';
+  // Each run of the same face is one shape, so no seams show. Its shadow (the pile's, or a light one
+  // in flight) falls on the bench and on any turn underneath.
+  if (!ctx.shadowBlur) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 2; ctx.shadowOffsetY = 0.6; }
+  let k0 = 0;
+  for (let k = 1; k <= n; k++) {
+    if (k < n && P[k].side === P[k0].side) continue;
     ctx.beginPath();
-    const n = Math.round(turns * 28);
-    for (let k = 0; k <= n; k++) {
-      const t = k / n, a = t * turns * Math.PI * 2;
-      const r = R * (0.2 + 0.8 * t);
-      const x = Math.cos(a) * r, y = Math.sin(a) * r * squash;
-      k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
-    }
-    // the end that ran out before it curled, bending away
-    const a = turns * Math.PI * 2, ex = Math.cos(a) * R, ey = Math.sin(a) * R * squash;
-    ctx.quadraticCurveTo(ex + tail * 0.6, ey - tail * 0.5, ex + tail, ey - tail * 0.2);
-  };
-  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = `rgba(${c[0] * 0.55 | 0},${c[1] * 0.48 | 0},${c[2] * 0.4 | 0},.85)`;
-  ctx.lineWidth = lw + 1.6;
-  path(); ctx.stroke();
-  ctx.strokeStyle = `rgba(${Math.min(255, c[0] * 1.08 + 10) | 0},${Math.min(255, c[1] * 1.06 + 10) | 0},${Math.min(255, c[2] * 1.02 + 6) | 0},.97)`;
-  ctx.lineWidth = lw;
-  path(); ctx.stroke();
+    for (let q = k0; q <= k; q++) { const [px, py] = side(q, 1); q === k0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); }
+    for (let q = k; q >= k0; q--) { const [px, py] = side(q, -1); ctx.lineTo(px, py); }
+    ctx.closePath();
+    ctx.fillStyle = rgba(P[k0].side ? light : back, 0.96);
+    ctx.fill();
+    k0 = k;
+  }
+  // A fine darker edge along both sides.
+  ctx.shadowColor = 'transparent';
+  ctx.strokeStyle = rgba([c[0] * 0.5, c[1] * 0.42, c[2] * 0.34], 0.45);
+  ctx.lineWidth = 0.7;
+  for (const sgn of [1, -1]) {
+    ctx.beginPath();
+    for (let q = 0; q <= n; q++) { const [px, py] = side(q, sgn); q ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.stroke();
+  }
   ctx.restore();
 }
 
