@@ -254,6 +254,23 @@ try {
   assert.equal(p.strokes, 0);
   assert.equal(p.rough, await page.evaluate(() => window.outOfWind.board().NX * window.outOfWind.board().NY));
 
+  step('a finished board opens fresh, ready to plane again');
+  await page.click('#introGo');
+  await page.click('#backBtn');
+  await page.waitForSelector('#home', { state: 'visible' });
+  await page.click('.plank[data-no="1"]');
+  await page.waitForSelector('#intro', { state: 'visible' });
+  assert.equal(await page.textContent('#introGo'), 'Plane it again');
+  assert.match(await page.textContent('#introFacts'), /Best(FAS|Select|No\. 1 Common|No\. 2 Common), \d+ strokes/);
+  p = await peek(page);
+  assert.equal(p.no, 1);
+  assert.equal(p.strokes, 0);
+  assert.equal(p.finished, false);
+  assert.equal(p.rough, await page.evaluate(() => window.outOfWind.board().NX * window.outOfWind.board().NY), 'rough from the mill again');
+  await page.click('#introGo');
+  await page.click('#backBtn');
+  await page.click('.plank[data-no="2"]');
+
   step('millimetres from the menu, remembered');
   await page.click('#introGo');
   await page.click('#menuBtn');

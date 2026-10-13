@@ -172,18 +172,24 @@ function openBoard(no, fresh = false) {
   closeSheets();
   def = BOARDS[no - 1];
   board = new Board(def);
-  const saved = !fresh && state.benches[no];
+  let saved = !fresh && state.benches[no];
+  // A board you finished, or took through the line, starts again from the rough when you come back to
+  // it, unless you'd chosen to keep planing it.
+  if (saved && ((saved.finished && !saved.keep) || saved.failed)) {
+    state.attempts[no] = (state.attempts[no] || 0) + 1;
+    delete state.benches[no];
+    saved = null;
+  }
   strokes = 0; finished = false; failed = false; keepGoing = false; mode = 'plane';
   flatLog = []; stuckAt = -99; fullSaid = false; missSaid = false;
   rand = rng(def.seed * 7919 + (state.attempts[no] || 0) * 104729 + 1);
   scene.scribbleSeed = null;
   let resumed = false;
-  if (saved && !saved.failed && board.load(saved.board)) {
+  if (saved && board.load(saved.board)) {
     strokes = saved.strokes || 0;
     rand.set(saved.rs | 0);
     scene.scribbleSeed = saved.scribble ?? null;
-    finished = !!saved.finished;
-    keepGoing = finished;
+    finished = keepGoing = !!saved.finished;
     resumed = true;
   }
   state.last = no;
@@ -233,8 +239,11 @@ function showIntro() {
     ['Keep', `${U.thick(keepFor(def))} or more for the thickness mark`],
     ['Par', `${def.par} strokes`],
   ];
+  const best = state.best[def.no];
+  if (best) facts.push(['Best', `${GRADES[best.marks - 1]}, ${best.strokes} strokes`]);
   $('introFacts').innerHTML = facts.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('');
   $('introNote').textContent = def.note || wood.note;
+  $('introGo').textContent = best ? 'Plane it again' : 'Start planing';
   openSheet('intro');
 }
 $('introGo').addEventListener('click', () => {
@@ -632,7 +641,7 @@ function showFailed() {
 
 $('nextBtn').addEventListener('click', () => { const next = BOARDS[def.no]; if (next) go(next.no); });
 $('againBtn').addEventListener('click', restart);
-$('keepBtn').addEventListener('click', () => { keepGoing = true; closeSheets(); });
+$('keepBtn').addEventListener('click', () => { keepGoing = true; persist(); closeSheets(); });
 
 function restart() {
   if (!def) return;
@@ -701,7 +710,7 @@ function hint(key, text, always) {
 function persist() {
   if (!board) return;
   state.benches[def.no] = {
-    strokes, rs: rand.state(), board: board.save(), scribble: scene.scribbleSeed ?? null, finished, failed,
+    strokes, rs: rand.state(), board: board.save(), scribble: scene.scribbleSeed ?? null, finished, failed, keep: keepGoing,
   };
   save(state);
 }
