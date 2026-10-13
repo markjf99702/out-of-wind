@@ -67,13 +67,28 @@ try {
   await page.goto(base);
   await page.evaluate(() => document.fonts.ready);
 
-  step('the rack: thirteen boards, only the first open');
+  step('the rack: thirteen boards, only the first open, the rest locked');
   assert.equal(await page.locator('.plank').count(), 13);
   assert.equal(await page.getAttribute('.plank[data-no="1"]', 'aria-disabled'), null);
   assert.equal(await page.getAttribute('.plank[data-no="2"]', 'aria-disabled'), 'true');
+  assert.equal(await page.locator('.plank .lock').count(), 12, 'a lock on each locked plank');
   await page.click('.plank[data-no="2"]', { force: true }); // aria-disabled: Playwright won't tap it unless told to
   assert.ok(await page.isHidden('#bench'), 'a locked board stays shut');
-  assert.equal(await page.textContent('#resumeBtn'), 'Finish No. 1 first.');
+  assert.equal(await page.textContent('li:has(> .plank[data-no="2"]) .plank-note'), 'Finish No. 1 first.', 'said by the plank tapped');
+  assert.ok(await page.isHidden('#resumeBtn'), 'and not in the resume button');
+  // Two quick taps: one note, by the second plank, and nothing left behind.
+  await page.click('.plank[data-no="3"]', { force: true });
+  await page.click('.plank[data-no="4"]', { force: true });
+  assert.equal(await page.locator('.plank-note').count(), 1);
+  assert.equal(await page.textContent('li:has(> .plank[data-no="4"]) .plank-note'), 'Finish No. 1 first.');
+  await page.waitForSelector('.plank-note', { state: 'detached', timeout: 4000 });
+  assert.ok(await page.isHidden('#resumeBtn'));
+  // Scrolled down to the last boards, the note shows where you tapped.
+  await page.locator('.plank[data-no="12"]').scrollIntoViewIfNeeded();
+  await page.click('.plank[data-no="12"]', { force: true });
+  const note = await page.locator('.plank-note').boundingBox();
+  assert.ok(note && note.y > 0 && note.y + note.height < 844, 'the note is on screen: ' + JSON.stringify(note));
+  await page.evaluate(() => scrollTo(0, 0));
   assert.match(await page.textContent('.plank[data-no="1"]'), /No\. 1 · Pine.*Hollow · 24 × 5 in/);
 
   step('board 1: the intro, then the bench');

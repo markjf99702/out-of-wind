@@ -62,7 +62,13 @@ function renderRack() {
       gr.title = GRADES[best.marks - 1];
       btn.append(gr);
     }
-    if (!unlocked(d.no)) btn.setAttribute('aria-disabled', 'true');
+    if (!unlocked(d.no)) {
+      btn.setAttribute('aria-disabled', 'true');
+      const lock = document.createElement('span');
+      lock.className = 'lock';
+      lock.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11V8a4 4 0 0 1 8 0v3"/><rect x="5.5" y="11" width="13" height="9.5" rx="2"/></svg>';
+      btn.append(lock);
+    }
     btn.setAttribute('aria-label', `${boardName(d, WOODS)}, ${d.title}${best ? ', graded ' + GRADES[best.marks - 1] : ''}${unlocked(d.no) ? '' : ', locked'}`);
     li.append(btn);
     rack.append(li);
@@ -122,16 +128,25 @@ $('rack').addEventListener('click', e => {
   const btn = e.target.closest('.plank');
   if (!btn) return;
   const no = +btn.dataset.no;
-  if (!unlocked(no)) { toastHome('Finish No. ' + (no - 1) + ' first.'); return; }
+  if (!unlocked(no)) { lockedNote(btn); return; }
   go(no);
 });
 $('resumeBtn').addEventListener('click', () => go(state.last));
 
-function toastHome(text) {
-  const b = $('resumeBtn');
-  const old = b.textContent, wasHidden = b.hidden;
-  b.hidden = false; b.textContent = text; b.disabled = true;
-  setTimeout(() => { b.textContent = old; b.hidden = wasHidden; b.disabled = false; }, 1600);
+// A locked plank says which board opens it, pinned to the plank you tapped.
+let noteTimer = 0;
+function lockedNote(btn) {
+  const next = BOARDS.find(d => !state.best[d.no]); // the board you're on: each opens the next
+  const clear = () => { for (const n of document.querySelectorAll('.plank-note')) { n.parentElement.classList.remove('noted'); n.remove(); } };
+  clear();
+  const note = document.createElement('p');
+  note.className = 'plank-note';
+  note.setAttribute('role', 'status');
+  note.textContent = `Finish No. ${next.no} first.`;
+  btn.parentElement.classList.add('noted');
+  btn.parentElement.append(note);
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(clear, 1800);
 }
 
 // ---------- moving between the rack and the bench ----------

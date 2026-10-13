@@ -76,6 +76,18 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brass); outline
 }
 .plank[aria-disabled="true"] .label { color: var(--ink2); text-shadow: none; z-index: 1; }
 .plank[aria-disabled="true"] .label span { color: var(--ink3); }
+.plank .lock { position: relative; z-index: 1; margin-right: 16px; display: grid; color: var(--ink3); }
+.plank .lock svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linejoin: round; }
+.rack li { position: relative; }
+.rack li.noted .lock { visibility: hidden; }
+/* A paper tag, pencilled: which board to finish first. */
+.plank-note {
+  position: absolute; right: 8px; top: 50%; margin: 0; z-index: 2; pointer-events: none;
+  background: var(--paper); color: var(--paper-ink); border-radius: 5px; padding: 6px 12px 4px;
+  font: 400 24px/1 var(--pencil); box-shadow: 0 3px 10px rgba(0, 0, 0, .45);
+  transform: translateY(-50%) rotate(-2deg); animation: tag .16s ease-out;
+}
+@keyframes tag { from { opacity: 0; transform: translateY(-40%) rotate(-2deg); } }
 .home-foot { margin-top: 18px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; color: var(--ink3); }
 .quiet { background: none; border: 0; padding: 6px 0; color: var(--ink2); font-size: 15px; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--line); }
 .quiet:hover { color: var(--ink); }
@@ -211,4 +223,4 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brass); outline
   .tool, .tool#edgeBtn { width: 78px; padding: 3px 2px; }
   .tool svg { height: 18px; }
 }
-@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } .plank-note { animation: none; } }
