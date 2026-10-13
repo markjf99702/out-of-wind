@@ -49,6 +49,7 @@ export class Stroke {
     this.halfRows = Math.round(this.t.len / 2 / board.dx);
     this.tearing = new Float32Array(board.NY);
     this.travel = 0; // how far the mouth has moved along the board, over it, in the stroke's direction
+    this.over = false; // whether the blade was ever over the board
     this.rows = 0; this.cells = 0; this.volume = 0; this.tornNew = 0;
     this.run = 0; this.longest = 0; this.fullWidthRows = 0;
     this.shavings = []; // each continuous cut: [{ i, w: cut width in mm, d: depth }, ...]
@@ -87,7 +88,12 @@ export class Stroke {
       }
     }
     const on0 = Math.min(Math.max(px, 0), b.L), on1 = Math.min(Math.max(x, 0), b.L);
-    this.travel += Math.abs(on1 - on0);
+    // Going along the board only counts while the blade is over it, across its width as well.
+    const hb = this.t.blade / 2;
+    if (Math.max(py, y) + hb > 0 && Math.min(py, y) - hb < b.W && (on1 !== on0 || (x >= 0 && x <= b.L))) {
+      this.travel += Math.abs(on1 - on0);
+      this.over = true;
+    }
     this.from = Math.min(this.from ?? on0, on0, on1); this.to = Math.max(this.to ?? on1, on0, on1);
     this.x = x; this.y = y;
     return out;
@@ -196,7 +202,8 @@ export class Stroke {
 
   // The stroke is over. counts: whether it counts as a stroke, which is when it took a shaving.
   // skated: the plane went along the board and cut nothing (the sole rode on higher wood);
-  // across: the finger went across the board rather than along it.
+  // across: the finger went across the board rather than along it; off: it went along beside the
+  // board, never over it.
   end() {
     const off = this.liftTo();
     if (off !== null) this.move(off, this.y);
@@ -207,10 +214,12 @@ export class Stroke {
     const fwd = this.dir >= 0;
     const startIn = fwd ? (this.x0 < this.reach ? 0 : Math.min(L, this.x0)) : (this.x0 > L - this.reach ? 0 : Math.min(L, L - this.x0));
     const stopShort = !this.dir ? 0 : fwd ? Math.max(0, Math.min(L, L - this.x)) : Math.max(0, Math.min(L, this.x));
+    const across = this.cells === 0 && this.spanY > 25 && this.spanY > this.spanX;
     return {
       counts: this.cells > 0,
       skated: this.cells === 0 && this.travel >= 30,
-      across: this.cells === 0 && this.spanY > 25 && this.spanY > this.spanX,
+      across,
+      off: this.cells === 0 && !across && !this.over && this.spanX >= 30,
       straight: this.spanY < 25, // straight down the board, not from corner to corner
       from: this.from ?? 0, to: this.to ?? 0, // the stretch of the board the mouth went over (mm)
       startIn, stopShort, y0: this.y0, y: this.y,

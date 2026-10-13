@@ -541,7 +541,8 @@ function endStroke() {
 
 // A stroke that cut nothing doesn't count, and every one says why.
 function missed(r) {
-  if (r.skated) {
+  if (r.off) toast('That was off the board. Swipe along the board itself to take a stroke.', 3000);
+  else if (r.skated) {
     const ends = r.from < board.L * 0.12 || r.to > board.L * 0.88;
     if (def.no === 1 && !ends && !missSaid) toast('No shaving: the middle of this board is low, so the plane rode over it. Go end to end.', 4200);
     else if (!missSaid) toast('No shaving: the plane rode on higher wood around that spot. Strokes that cut nothing don’t count.', 4200);

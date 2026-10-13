@@ -170,6 +170,17 @@ test('a stroke that cuts nothing is free, and says whether it skated or went acr
   assert.equal(a.counts, false);
   assert.equal(a.across, true);
   assert.equal(a.skated, false);
+  // A swipe along beside the board, down the side view or the shavings, never had the plane on it.
+  for (const y of [300, -60]) {
+    const beside = stroke(plain({}), 'jointer', -40, 800, y, y, rng(1));
+    assert.equal(beside.counts, false);
+    assert.equal(beside.off, true, 'off the board at y ' + y);
+    assert.equal(beside.skated, false, 'not riding on higher wood');
+  }
+  assert.equal(r.off, false, 'the hollow’s stroke was on the board');
+  const tap = new Stroke(plain({}), 'jointer', 300, 90, rng(1));
+  tap.move(301, 90);
+  assert.equal(tap.end().off, false, 'a tap says nothing');
   // And a stroke from one corner diagonally to the other isn't a straight one (board 3's hint is for those).
   assert.equal(stroke(plain({ twist: 0.5 }), 'jointer', -40, 800, 20, 160, rng(1)).straight, false);
   assert.equal(stroke(plain({ twist: 0.5 }), 'jointer', -40, 800, 20, 20, rng(1)).straight, true);

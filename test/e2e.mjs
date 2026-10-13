@@ -160,6 +160,16 @@ try {
   }
   assert.equal((await peek(page)).strokes, 1);
   assert.match(await page.textContent('#toast'), /^Plane along the board, from end to end/);
+  // A swipe down the side view, beside the board, never had the plane on the board, and says so.
+  {
+    const a = await at(page, 100, 230), z = await at(page, 520, 230), view = await page.evaluate(() => { const s = window.outOfWind.scene; return s.lv0 + s.lh / 2; });
+    assert.ok(Math.abs(a.x - view) < 30, 'the swipe is on the side view: ' + a.x + ' vs ' + view);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: a.x, y: a.y }] });
+    for (let k = 1; k <= 10; k++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: a.x, y: a.y + ((z.y - a.y) * k) / 10 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  }
+  assert.equal((await peek(page)).strokes, 1);
+  assert.equal(await page.textContent('#toast'), 'That was off the board. Swipe along the board itself to take a stroke.');
 
   step('the straightedge shows light under the hollow, along and across');
   await page.click('#edgeBtn');
