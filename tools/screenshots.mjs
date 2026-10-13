@@ -64,6 +64,7 @@ async function midStroke(page, no, lanes, stroke) {
   await settle(page, 800);
   await page.evaluate(ls => { const b = window.outOfWind.board(); for (const [y, x0, x1] of ls) window.outOfWind.swipe('jointer', x0 ?? -60, x1 ?? b.L + 60, y); }, lanes);
   await settle(page, 900);
+  await page.evaluate(() => document.getElementById('toast').classList.remove('on')); // a picture of the bench, not of a note
   const [y, x0, x1] = stroke;
   const a = await toClient(page, x0, y), z = await toClient(page, x1, y);
   await page.mouse.move(a.x, a.y);
@@ -101,6 +102,11 @@ async function midStroke(page, no, lanes, stroke) {
 // A card: the name and one line on the left, and the bench on the right, mid-stroke on the cherry board.
 {
   const page = await open({ width: 700, height: 630 }, 2, played(6), false);
+  // The card shows the side view's top, but not the start of its label, which the fade would cut off.
+  await page.evaluate(() => {
+    const fill = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function (text, ...rest) { if (!/^UNDER THE/.test(text)) fill.call(this, text, ...rest); };
+  });
   await midStroke(page, 7, [[30], [75], [120], [165]], [100, -40, 470]);
   const bench = await page.evaluate(() => document.getElementById('cv').toDataURL('image/png'));
   await page.context().close();
