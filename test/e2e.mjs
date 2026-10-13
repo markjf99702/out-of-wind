@@ -2,9 +2,10 @@
 // On a phone: opens the first board, scribbles pencil, takes a real touch stroke with the jointer
 // and checks it rode the hollow, lays the straightedge and the winding sticks, finishes the board,
 // grades it and unlocks the next, keeps a board part-way through a reload, goes through the gauge
-// line and starts again, and switches units. Then on a laptop and a phone on its side, and the
-// checks every project wants: no errors, nothing loaded from elsewhere, nothing scrolling sideways,
-// installable, and it still plays offline.
+// line and starts again, switches units, and on a crowned board planed the obvious way, says what
+// shape is left. Then on a laptop and a phone on its side, and the checks every project wants: no
+// errors, nothing loaded from elsewhere, nothing scrolling sideways, installable, and it still plays
+// offline.
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -213,6 +214,26 @@ try {
   await page.click('#menuSoundBtn');
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('out-of-wind.v1')).sound), false);
   await page.click('#menuClose');
+
+  step('stuck on a crowned board, the bench says what shape is left');
+  await page.evaluate(() => {
+    const s = JSON.parse(localStorage.getItem('out-of-wind.v1'));
+    for (const n of [2, 3]) s.best[n] = { marks: 1, strokes: 99, thick: 19.2, torn: 0, flat: 0.1 };
+    localStorage.setItem('out-of-wind.v1', JSON.stringify(s));
+  });
+  await page.reload(); // so the page reads what was just put there
+  await page.goto(base + '#4');
+  await page.waitForSelector('#intro', { state: 'visible' });
+  await page.click('#introGo');
+  const said = await page.evaluate(() => {
+    const b = window.outOfWind.board(), t = document.getElementById('toast'), seen = [];
+    for (let pass = 0; pass < 8 && !window.outOfWind.peek().failed; pass++) for (const y of [22, 67, 112, b.W - 22]) {
+      window.outOfWind.swipe('jointer', -40, b.L + 40, y); // full passes: they just follow a crown down
+      if (t.classList.contains('on') && seen[seen.length - 1] !== t.textContent) seen.push(t.textContent);
+    }
+    return seen;
+  });
+  assert.ok(said.some(x => /^Still crowned\. /.test(x)), 'said: ' + said.join(' | '));
 
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'the bench scrolls sideways on a phone');
   await page.click('#backBtn');
