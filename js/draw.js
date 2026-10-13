@@ -555,7 +555,7 @@ export class Scene {
       const e = 1 - (1 - t) * (1 - t);
       const u = mix(f.from.u, f.to.u, e), v = mix(f.from.v, f.to.v, e) - Math.sin(t * Math.PI) * 26;
       const rot = f.rot0 + f.spin * t;
-      drawLoose(ctx, f, u, v, rot, this.s);
+      drawLoose(ctx, f, u, v, rot, this.s, true);
       if (t < 1) keep.push(f);
       else if (!f.chip || Math.random() < 0.5) { this.pile.push({ ...f, u: f.to.u, v: f.to.v, rot }); if (this.pile.length > 140) { this.pile.splice(0, 40); this.pileDrawn = Infinity; } }
     }
@@ -737,16 +737,12 @@ export class Scene {
     if (line && line.res) {
       // The straightedge resting on it, and the light underneath.
       const ra = vy(line.res.z0), rb = vy(line.res.z1);
-      ctx.save();
-      ctx.fillStyle = LIGHT_GAP;
-      ctx.shadowColor = 'rgba(255,230,150,.9)'; ctx.shadowBlur = 6;
       ctx.beginPath();
       ctx.moveTo(xu(0), ra);
       for (let q = 0; q < n; q++) ctx.lineTo(xu(q), Math.max(mix(ra, rb, q / (n - 1)), vy(zs[q])));
       ctx.lineTo(xu(n - 1), rb);
       ctx.closePath();
-      ctx.fill();
-      ctx.restore();
+      glow(ctx);
       ctx.strokeStyle = '#c8ccd0';
       ctx.lineWidth = 3;
       ctx.beginPath(); ctx.moveTo(xu(0), ra - 1.5); ctx.lineTo(xu(n - 1), rb - 1.5); ctx.stroke();
@@ -771,17 +767,13 @@ export class Scene {
     // Light under the sole.
     const u0 = Math.max(ux - half, ua), u1 = Math.min(ux + half, ub);
     if (u1 > u0) {
-      ctx.save();
-      ctx.fillStyle = LIGHT_GAP;
-      ctx.shadowColor = 'rgba(255,230,150,.9)'; ctx.shadowBlur = 6;
       ctx.beginPath();
       ctx.moveTo(u0, soleAt(u0));
       ctx.lineTo(u1, soleAt(u1));
-      const steps = Math.max(8, Math.ceil((u1 - u0) / 2));
+      const steps = Math.max(8, Math.ceil((u1 - u0) / 3));
       for (let k = steps; k >= 0; k--) { const u = u0 + ((u1 - u0) * k) / steps; ctx.lineTo(u, Math.max(soleAt(u), faceAt(u))); }
       ctx.closePath();
-      ctx.fill();
-      ctx.restore();
+      glow(ctx);
     }
     ctx.save();
     ctx.translate(ux, zr);
@@ -995,7 +987,7 @@ function drawCurl(ctx, t, curl, now) {
 }
 
 // A loose shaving or chip lying on (or flying to) the bench.
-function drawLoose(ctx, f, u, v, rot, s) {
+function drawLoose(ctx, f, u, v, rot, s, flying = false) {
   const c = f.color;
   if (f.chip) {
     ctx.save();
@@ -1008,14 +1000,14 @@ function drawLoose(ctx, f, u, v, rot, s) {
     ctx.restore();
     return;
   }
-  drawShaving(ctx, f, u, v, rot, s);
+  drawShaving(ctx, f, u, v, rot, s, flying);
 }
 
 // A shaving: a thin ribbon, straight where it left the iron and curling tighter toward its end,
 // twisting as it goes, so it's wide where its face is toward you and a thin line where it turns
 // edge-on. The outside of the curl is pale, the inside a little darker. Longer strokes make longer
 // ribbons that roll up further; the jack's narrow, deep cut makes narrower ones.
-function drawShaving(ctx, f, u, v, rot, s) {
+function drawShaving(ctx, f, u, v, rot, s, flying = false) {
   const c = f.color;
   const seed = f.seed ?? (f.seed = Math.random() * 1000);
   const rr = k => { const x = Math.sin(seed * 12.9898 + k * 78.233) * 43758.5453; return x - Math.floor(x); };
@@ -1025,7 +1017,7 @@ function drawShaving(ctx, f, u, v, rot, s) {
   const turns = clamp(0.6 + f.len / 500, 0.6, 1.7) * (0.85 + 0.3 * rr(2));
   const total = turns * Math.PI * 2, p = 1.6 + rr(3) * 0.6;
   const twist = (0.5 + rr(4) * 1.1) * Math.PI, ph = rr(5) * Math.PI;
-  const n = 40, ds = Lpx / n, P = [];
+  const n = flying ? 24 : 40, ds = Lpx / n, P = [];
   let x = 0, y = 0;
   for (let k = 0; k <= n; k++) {
     const t = k / n, th = total * Math.pow(t, p);
@@ -1046,9 +1038,8 @@ function drawShaving(ctx, f, u, v, rot, s) {
   ctx.rotate(rot);
   ctx.translate(-mx, -my);
   ctx.lineJoin = 'round';
-  // Each run of the same face is one shape, so no seams show. Its shadow (the pile's, or a light one
-  // in flight) falls on the bench and on any turn underneath.
-  if (!ctx.shadowBlur) { ctx.shadowColor = 'rgba(0,0,0,.28)'; ctx.shadowBlur = 2; ctx.shadowOffsetY = 0.6; }
+  // Each run of the same face is one shape, so no seams show. On the pile, the pile's shadow falls on
+  // the bench and on any turn underneath; in flight there's none, to keep the frame quick.
   let k0 = 0;
   for (let k = 1; k <= n; k++) {
     if (k < n && P[k].side === P[k0].side) continue;
@@ -1069,6 +1060,16 @@ function drawShaving(ctx, f, u, v, rot, s) {
     for (let q = 0; q <= n; q++) { const [px, py] = side(q, sgn); q ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+// Fills the current path with light, and a soft halo round it (a wide faint stroke, cheaper than a blur).
+function glow(ctx) {
+  ctx.save();
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(255,230,150,.22)'; ctx.lineWidth = 5; ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,236,170,.4)'; ctx.lineWidth = 2.5; ctx.stroke();
+  ctx.fillStyle = LIGHT_GAP; ctx.fill();
   ctx.restore();
 }
 
