@@ -114,6 +114,23 @@ try {
   await page.touchscreen.tap(mid.x, mid.y);
   assert.equal((await peek(page)).strokes, 1);
 
+  step('a stroke that cuts nothing is free, and every one says so');
+  await touchSwipe(page, cdp, 250, 360, 100); // the middle of a hollow: the jointer rides over it
+  assert.equal((await peek(page)).strokes, 1, 'not counted');
+  assert.equal(await page.textContent('#toast'), 'No shaving: the middle of this board is low, so the plane rode over it. Go end to end.');
+  await touchSwipe(page, cdp, 260, 350, 30);
+  assert.equal((await peek(page)).strokes, 1);
+  assert.equal(await page.textContent('#toast'), 'No shaving there. That one doesn’t count.', 'the second one says so too');
+  // A swipe across the board isn't a stroke, and says which way to go.
+  {
+    const a = await at(page, 300, 10), z = await at(page, 300, 118);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: a.x, y: a.y }] });
+    for (let k = 1; k <= 8; k++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: a.x + ((z.x - a.x) * k) / 8, y: a.y + ((z.y - a.y) * k) / 8 }] });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  }
+  assert.equal((await peek(page)).strokes, 1);
+  assert.match(await page.textContent('#toast'), /^Plane along the board, from end to end/);
+
   step('the straightedge shows light under the hollow, along and across');
   await page.click('#edgeBtn');
   p = await peek(page);

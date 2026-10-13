@@ -30,7 +30,9 @@ let stroke = null, shaving = null, finished = false, failed = false, keepGoing =
 let edgeFrom = null, hover = false;
 let windWas = 0; // how far out of wind the board was, to notice when the sticks line up
 let flatLog = []; // flatness after each stroke, to notice when it stops coming down
+let stuckAt = -99; // the stroke when the bench last said what shape is left
 let fullSaid = false; // the first full-length shaving on a board gets a word; the rest just the sound
+let missSaid = false; // the first stroke on a board that cuts nothing gets the long explanation
 
 // ---------- the rack ----------
 const unlocked = no => no === 1 || !!state.best[no - 1];
@@ -156,7 +158,8 @@ function openBoard(no, fresh = false) {
   def = BOARDS[no - 1];
   board = new Board(def);
   const saved = !fresh && state.benches[no];
-  strokes = 0; finished = false; failed = false; keepGoing = false; mode = 'plane'; flatLog = []; fullSaid = false;
+  strokes = 0; finished = false; failed = false; keepGoing = false; mode = 'plane';
+  flatLog = []; stuckAt = -99; fullSaid = false; missSaid = false;
   rand = rng(def.seed * 7919 + (state.attempts[no] || 0) * 104729 + 1);
   scene.scribbleSeed = null;
   let resumed = false;
@@ -422,19 +425,30 @@ function endStroke() {
   syncLoupe();
   if (r.counts) flatLog.push(board.flatness());
   if (board.thinnest().t >= board.tmin) {
-    const wind = Math.abs(board.wind().wind);
-    if (r.counts && !r.cells) hint('nocut', 'Nothing to cut there: the sole is riding on higher wood. Try beside it, or another plane.');
-    else if (windWas > 0.3 && wind < 0.12) { toast('The winding sticks line up: out of wind.'); sound.tock(); }
+    const wind = Math.abs(board.wind().wind), lined = board.outOfWind();
+    if (!r.counts) missed(r);
+    else if (windWas >= WIND * 1.5 && lined) { toast('The winding sticks line up: out of wind.'); sound.tock(); }
     else if (gapBefore > 0.08 && scene.straight.res.gap < 0.04) { toast('No light under the straightedge.'); sound.tink(); }
-    else if (r.counts && stuck()) { /* said what's left */ }
+    else if (stuck()) { /* said what's left */ }
     else if (r.fullLength && r.fullWidth && !fullSaid) { fullSaid = true; toast('A full-length shaving.'); }
-    else if (r.counts) coach(r);
-    windWas = Math.max(wind, windWas > 0.3 && wind >= 0.12 ? windWas : wind);
+    else coach(r);
+    windWas = lined ? wind : Math.max(windWas, wind);
   }
   check();
   updateHud();
   persist();
   kick();
+}
+
+// A stroke that cut nothing doesn't count, and every one says why.
+function missed(r) {
+  if (r.skated) {
+    const ends = r.from < board.L * 0.12 || r.to > board.L * 0.88;
+    if (def.no === 1 && !ends && !missSaid) toast('No shaving: the middle of this board is low, so the plane rode over it. Go end to end.', 4200);
+    else if (!missSaid) toast('No shaving: the plane rode on higher wood around that spot. Strokes that cut nothing don’t count.', 4200);
+    else toast('No shaving there. That one doesn’t count.', 1800);
+    missSaid = true;
+  } else if (r.across) toast('Plane along the board, from end to end: across it, the plane won’t cut.', 3000);
 }
 
 // What the first boards say as you go, once each.
