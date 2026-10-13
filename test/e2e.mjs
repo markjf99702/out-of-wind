@@ -1,13 +1,16 @@
 // Plays Out of Wind in Chromium through the real page:  node test/e2e.mjs  (needs Playwright)
 // On a phone: a locked board says which to finish first, by the plank you tapped; the first board
-// shows a stroke starting on the board; pencil, then a real touch stroke with the jointer that rides
-// the hollow; strokes that cut nothing are free and say why; the straightedge and the winding sticks
-// say what they see; the board is finished, graded (with no stale note left up) and unlocks the next;
-// a board keeps part-way through a reload; tear-out shows in the top bar; it goes through the gauge
-// line and starts again; a finished board opens fresh to plane again; units; and on a crowned board
-// planed the obvious way, the bench says what shape is left, again on a second attempt. Then on a
-// laptop and a phone on its side, and the checks every project wants: no errors, nothing loaded from
-// elsewhere, nothing scrolling sideways, installable, and it still plays offline.
+// shows a stroke from off one end to off the other; pencil, then a real touch stroke with the jointer
+// that rides the hollow; strokes that cut nothing are free and say why; the straightedge and the
+// winding sticks say what they see; the board is finished, graded (with no stale note left up and no
+// stroke taken before the card) and unlocks the next; a board keeps part-way through a reload;
+// tear-out shows in the top bar; it goes through the gauge line and starts again; a finished board
+// opens fresh to plane again; units; and on a crowned board planed the obvious way, the bench says
+// what shape is left, again on a second attempt. Then board 3's last few thou, Back the way Android
+// does it, a page that won't let it change its address, the tabletop at the end, and a finger that
+// never quite reaches the ends; on a laptop and a phone on its side; and the checks every project
+// wants: no errors, nothing loaded from elsewhere, nothing scrolling sideways, installable, and it
+// still plays offline.
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -474,6 +477,27 @@ try {
     // And from the rack, Back leaves: none of the boards you opened come back.
     await pg.goBack();
     assert.equal(pg.url(), 'about:blank', 'Back from the rack leaves the game');
+    await c.close();
+  }
+
+  // ---------- shown inside another page ----------
+  {
+    step('inside a page that won’t let it change its address, as a sandboxed frame does, the boards still open and close');
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US' });
+    const pg = await c.newPage();
+    watch(pg, 'framed');
+    // A sandboxed frame's document (about:srcdoc, origin null) refuses both with a SecurityError.
+    await pg.addInitScript(() => {
+      for (const k of ['pushState', 'replaceState']) History.prototype[k] = function () { throw new DOMException('refused', 'SecurityError'); };
+    });
+    await pg.goto(base);
+    await pg.click('.plank[data-no="1"]');
+    await pg.waitForSelector('#intro', { state: 'visible' });
+    await pg.click('#introGo');
+    assert.equal((await peek(pg)).no, 1, 'the board opens');
+    await pg.click('#backBtn');
+    await pg.waitForSelector('#home', { state: 'visible' });
+    assert.ok(await pg.isHidden('#bench'), 'and the arrow goes back to the rack');
     await c.close();
   }
 
