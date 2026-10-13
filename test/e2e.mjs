@@ -477,6 +477,51 @@ try {
     await c.close();
   }
 
+  // ---------- the tabletop ----------
+  {
+    step('every board done: board 13 goes on to the tabletop, with every board’s grade, and the rack keeps it');
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US' });
+    const pg = await c.newPage();
+    watch(pg, 'tabletop');
+    const cd = await c.newCDPSession(pg);
+    const best = Object.fromEntries(Array.from({ length: 12 }, (_, k) => [k + 1, { marks: [4, 3, 2, 1][k % 4], strokes: 30 + k, thick: 19.9, torn: 0, flat: 0.12 }]));
+    await pg.addInitScript(s => { if (location.protocol === 'http:' && !localStorage.getItem('out-of-wind.v1')) localStorage.setItem('out-of-wind.v1', JSON.stringify(s)); },
+      { v: 1, best, benches: {}, attempts: {}, seen: { swipe: 1, stroke: 1, pencil: 1 }, unit: 'in', sound: false });
+    await pg.goto(base);
+    assert.ok(await pg.isHidden('#tableBtn'), 'not until every board is done');
+    await pg.click('.plank[data-no="13"]');
+    await pg.click('#introGo');
+    // The panel, planed dead flat in one go (as if it had taken a while), then one more stroke finishes it.
+    await pg.evaluate(() => {
+      const b = window.outOfWind.board();
+      let h = -Infinity;
+      for (let k = 0; k < b.top.length; k++) h = Math.max(h, b.bottom[k] + 19.6);
+      b.top.fill(h); b.cut.fill(1);
+      window.outOfWind.scene.refit();
+    });
+    const { L } = await pg.evaluate(() => ({ L: window.outOfWind.board().L }));
+    await touchSwipe(pg, cd, -15, L + 15, 200);
+    await pg.waitForSelector('#result', { state: 'visible', timeout: 10000 });
+    assert.equal(await pg.textContent('#nextBtn'), 'See the tabletop');
+    await pg.click('#nextBtn');
+    await pg.waitForSelector('#table', { state: 'visible' });
+    assert.equal(await pg.locator('#tally li').count(), 13, 'every board in the tally');
+    assert.match(await pg.textContent('#tally li:last-child'), /^No\. 13Panel · The tabletop(FAS|Select|#1 Com|#2 Com)$/);
+    assert.match(await pg.textContent('#tableNote'), /^Walnut, maple and cherry, glued up and planed flat\. \d+ of 13 boards graded FAS, in \d+ strokes against a par of \d+\.$/);
+    const drawn = await pg.evaluate(() => { const cv = document.getElementById('tableCv'), d = cv.getContext('2d').getImageData(cv.width / 2, cv.height * 0.3, 1, 1).data; return d[3]; });
+    assert.ok(drawn > 200, 'the table is drawn: ' + drawn);
+    await pg.click('#tableClose');
+    await pg.waitForSelector('#home', { state: 'visible' });
+    const fas = await pg.evaluate(() => Object.values(JSON.parse(localStorage.getItem('out-of-wind.v1')).best).filter(b => b.marks === 4).length);
+    assert.equal(await pg.textContent('#progress'), `All 13 done, ${fas} graded FAS.`);
+    await pg.click('#tableBtn');
+    await pg.waitForSelector('#table', { state: 'visible' });
+    await pg.click('#tableClose');
+    assert.ok(await pg.isHidden('#table'));
+    assert.equal(await pg.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'no sideways scrolling');
+    await c.close();
+  }
+
   // ---------- a finger that never quite reaches the ends ----------
   {
     step('board 1, swiped lane by lane from 8 px onto the board to 8 px short of the far end, finishes within par');

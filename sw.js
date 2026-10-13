@@ -3,11 +3,11 @@
 // Network first, so a new version shows up as soon as you're online.
 // When you add, rename or remove a file the page loads, update SHELL (npm test checks it) and bump CACHE.
 
-const CACHE = 'out-of-wind-v1';
+const CACHE = 'out-of-wind-v2';
 const SHELL = [
   './', 'index.html', 'css/app.css', 'icon.svg', 'manifest.webmanifest',
   'js/app.js', 'js/board.js', 'js/boards.js', 'js/draw.js', 'js/plane.js', 'js/rng.js',
-  'js/sound.js', 'js/store.js', 'js/units.js', 'js/wood.js', 'js/woods.js',
+  'js/sound.js', 'js/store.js', 'js/table.js', 'js/units.js', 'js/wood.js', 'js/woods.js',
   'fonts/young-serif.woff2', 'fonts/alegreya-sans-400.woff2', 'fonts/alegreya-sans-700.woff2', 'fonts/reenie-beanie.woff2',
 ];
 

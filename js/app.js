@@ -7,6 +7,7 @@ import { BOARDS, boardName, keepFor } from './boards.js';
 import { WOODS, rgb } from './woods.js';
 import { Scene } from './draw.js';
 import { woodTextures } from './wood.js';
+import { drawTable } from './table.js';
 import * as sound from './sound.js';
 import * as U from './units.js';
 import { load, save, better } from './store.js';
@@ -90,8 +91,9 @@ function renderRack() {
   const done = BOARDS.filter(d => state.best[d.no]), fas = done.filter(d => state.best[d.no].marks === 4).length;
   $('progress').hidden = !done.length;
   $('progress').textContent = done.length === BOARDS.length
-    ? `All ${BOARDS.length} done${fas ? ', ' + fas + ' graded FAS' : ''}. The tabletop’s ready.`
+    ? `All ${BOARDS.length} done${fas ? ', ' + fas + ' graded FAS' : ''}.`
     : `${done.length} of ${BOARDS.length} done${fas ? ', ' + fas + ' graded FAS' : ''}`;
+  $('tableBtn').hidden = done.length < BOARDS.length;
   const back = resumable(), resume = $('resumeBtn');
   resume.hidden = !back;
   if (back) {
@@ -148,6 +150,29 @@ $('rack').addEventListener('click', e => {
   go(no);
 });
 $('resumeBtn').addEventListener('click', e => go(+e.currentTarget.dataset.no));
+$('tableBtn').addEventListener('click', showTable);
+
+// ---------- the tabletop ----------
+// Every board done: the panel as the finished top, and every board's grade pencilled in a tally.
+const allDone = () => BOARDS.every(d => state.best[d.no]);
+function showTable() {
+  const tally = $('tally');
+  tally.textContent = '';
+  let strokes = 0, par = 0, fas = 0;
+  for (const d of BOARDS) {
+    const b = state.best[d.no];
+    if (!b) continue;
+    strokes += b.strokes; par += d.par; if (b.marks === 4) fas++;
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="n">No. ${d.no}</span><span class="w">${esc(d.panel ? 'Panel' : WOODS[d.wood].name)} · ${esc(d.title)}</span><span class="g" title="${GRADES[b.marks - 1]}">${SHORT[b.marks - 1]}</span>`;
+    tally.append(li);
+  }
+  $('tableNote').textContent = `Walnut, maple and cherry, glued up and planed flat. ${fas} of ${BOARDS.length} boards graded FAS, in ${strokes} strokes against a par of ${par}.`;
+  openSheet('table');
+  const cv = $('tableCv');
+  drawTable(cv, cv.clientWidth, cv.clientHeight, Math.min(2, devicePixelRatio || 1));
+}
+$('tableClose').addEventListener('click', () => { if ($('bench').hidden) closeSheets(); else go(0); });
 
 // A locked plank says which board opens it, pinned to the plank you tapped.
 let noteTimer = 0;
@@ -731,8 +756,9 @@ function showResult(result) {
   const next = BOARDS[def.no];
   $('resultNote').textContent = GRADES[result.marks - 1] + (result.marks === 4 ? ': the best grade there is.' : '.')
     + ` ${U.thick(result.thick)} at its thinnest, ${U.small(result.thick - board.tmin)} above the line.`;
-  $('nextBtn').hidden = !next;
-  $('nextBtn').textContent = next ? 'Next: No. ' + next.no : 'Next board';
+  // The last board, with every one done, goes on to the tabletop itself.
+  $('nextBtn').hidden = !next && !allDone();
+  $('nextBtn').textContent = next ? 'Next: No. ' + next.no : 'See the tabletop';
   $('againBtn').textContent = 'Plane it again';
   $('keepBtn').hidden = false;
   $('keepBtn').textContent = result.torn ? 'Plane out the tear-out' : 'Keep planing';
@@ -753,7 +779,7 @@ function showFailed() {
   openSheet('result');
 }
 
-$('nextBtn').addEventListener('click', () => { const next = BOARDS[def.no]; if (next) go(next.no); });
+$('nextBtn').addEventListener('click', () => { const next = BOARDS[def.no]; if (next) go(next.no); else showTable(); });
 $('againBtn').addEventListener('click', restart);
 $('keepBtn').addEventListener('click', () => {
   keepGoing = true;
@@ -839,7 +865,7 @@ function persist() {
 
 // ---------- sheets and settings ----------
 function openSheet(id) { closeSheets(); $(id).hidden = false; const f = $(id).querySelector('button.go, button.row, button'); if (f) f.focus({ preventScroll: true }); }
-function closeSheets() { for (const id of ['intro', 'result', 'menu', 'how']) $(id).hidden = true; }
+function closeSheets() { for (const id of ['intro', 'result', 'menu', 'how', 'table']) $(id).hidden = true; }
 
 $('backBtn').addEventListener('click', () => go(0));
 $('menuBtn').addEventListener('click', () => { updateSettings(); openSheet('menu'); });
@@ -872,7 +898,7 @@ function updateSettings() {
   $('menuSoundBtn').textContent = sound.soundOn() ? 'Sound off' : 'Sound on';
 }
 document.addEventListener('keydown', e => {
-  if (!$('bench').hidden && $('intro').hidden && $('result').hidden && $('menu').hidden && $('how').hidden && !e.metaKey && !e.ctrlKey && !e.altKey) {
+  if (!$('bench').hidden && $('intro').hidden && $('result').hidden && $('menu').hidden && $('how').hidden && $('table').hidden && !e.metaKey && !e.ctrlKey && !e.altKey) {
     const k = e.key.toLowerCase();
     const plane = { 1: 'jack', 2: 'jointer', 3: 'smoother' }[k];
     if (plane) { selectTool(plane); setMode('plane'); return; }
@@ -881,7 +907,7 @@ document.addEventListener('keydown', e => {
     if (k === 'w') { $('sticksBtn').click(); return; }
   }
   if (e.key === 'Escape') {
-    if (!$('menu').hidden || !$('how').hidden) closeSheets();
+    if (!$('menu').hidden || !$('how').hidden || !$('table').hidden) closeSheets();
     else if (!$('bench').hidden && $('result').hidden && $('intro').hidden) { updateSettings(); openSheet('menu'); }
   }
 });

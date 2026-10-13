@@ -27,6 +27,7 @@
       <p class="progress" id="progress" hidden></p>
     </header>
     <button type="button" class="go" id="resumeBtn" hidden></button>
+    <button type="button" class="go" id="tableBtn" hidden>See the tabletop</button>
     <ol class="rack" id="rack" aria-label="The boards"></ol>
     <div class="home-foot">
       <button type="button" class="quiet" id="howBtn">How to flatten a board</button>
@@ -119,6 +120,18 @@
         <button type="button" class="alt" id="againBtn">Plane it again</button>
         <button type="button" class="alt" id="keepBtn">Keep planing</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Every board done: the tabletop, and how each board was graded. -->
+  <div class="sheet" id="table" hidden>
+    <div class="card table-card">
+      <p class="kicker">Every board flat and out of wind</p>
+      <h2>The tabletop</h2>
+      <canvas id="tableCv" role="img" aria-label="The finished tabletop: the walnut, maple and cherry panel, planed and oiled, on a walnut base"></canvas>
+      <p class="small" id="tableNote"></p>
+      <ol class="tally" id="tally" aria-label="How each board was graded"></ol>
+      <button type="button" class="go" id="tableClose">Back to the boards</button>
     </div>
   </div>
 

@@ -193,6 +193,14 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--brass); outline
 }
 .menu-card .alt { align-self: flex-start; margin-top: 14px; }
 .menu-card .jd-foot, .how-card .jd-foot { color: var(--paper-ink2); }
+/* The tabletop, and the tally of grades pencilled under it. */
+.table-card canvas { display: block; width: 100%; aspect-ratio: 16 / 10; margin: 8px 0 0; }
+.table-card .small { margin-top: 6px; }
+.tally { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 1px; }
+.tally li { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: baseline; padding: 3px 0; border-bottom: 1px solid rgba(43, 32, 24, .1); font-size: 15px; }
+.tally .n { font: 400 15px var(--disp); }
+.tally .w { color: var(--paper-ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tally .g { font: 400 23px/1 var(--pencil); color: var(--red); transform: rotate(-4deg); }
 .how-card p { margin: 10px 0 0; font-size: 16px; line-height: 1.45; }
 .how-card b { font-weight: 700; }
 .how-card .grain-fig { display: block; width: 100%; max-width: 340px; height: auto; margin: 8px 0 2px; }
