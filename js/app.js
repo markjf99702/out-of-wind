@@ -30,6 +30,7 @@ let stroke = null, shaving = null, finished = false, failed = false, keepGoing =
 let edgeFrom = null, hover = false;
 let windWas = 0; // how far out of wind the board was, to notice when the sticks line up
 let flatLog = []; // flatness after each stroke, to notice when it stops coming down
+let fullSaid = false; // the first full-length shaving on a board gets a word; the rest just the sound
 
 // ---------- the rack ----------
 const unlocked = no => no === 1 || !!state.best[no - 1];
@@ -155,7 +156,7 @@ function openBoard(no, fresh = false) {
   def = BOARDS[no - 1];
   board = new Board(def);
   const saved = !fresh && state.benches[no];
-  strokes = 0; finished = false; failed = false; keepGoing = false; mode = 'plane'; flatLog = [];
+  strokes = 0; finished = false; failed = false; keepGoing = false; mode = 'plane'; flatLog = []; fullSaid = false;
   rand = rng(def.seed * 7919 + (state.attempts[no] || 0) * 104729 + 1);
   scene.scribbleSeed = null;
   let resumed = false;
@@ -426,7 +427,7 @@ function endStroke() {
     else if (windWas > 0.3 && wind < 0.12) { toast('The winding sticks line up: out of wind.'); sound.tock(); }
     else if (gapBefore > 0.08 && scene.straight.res.gap < 0.04) { toast('No light under the straightedge.'); sound.tink(); }
     else if (r.counts && stuck()) { /* said what's left */ }
-    else if (r.fullLength && r.fullWidth) toast('A full-length shaving.');
+    else if (r.fullLength && r.fullWidth && !fullSaid) { fullSaid = true; toast('A full-length shaving.'); }
     else if (r.counts) coach(r);
     windWas = Math.max(wind, windWas > 0.3 && wind >= 0.12 ? windWas : wind);
   }
