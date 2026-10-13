@@ -628,20 +628,28 @@ function restart() {
 }
 
 // ---------- the HUD ----------
+// The four marks a board is graded on, as you go: strokes against par, how flat (and what flat is),
+// the thinnest spot against the thickness mark (then the line, once the mark is gone), and tear-out.
 function updateHud() {
   $('strokes').textContent = strokes;
   $('par').textContent = 'par ' + def.par;
+  $('strokes').parentElement.classList.toggle('warn', strokes > def.par);
   const fl = board.flatness(), rough = board.roughLeft();
   $('flat').textContent = U.small(fl);
-  $('flatSub').textContent = rough ? 'rough ' + Math.ceil((rough / board.cut.length) * 100) + '%' : fl <= FLAT ? 'flat' : 'to go';
-  const th = board.thinnest().t, margin = th - board.tmin;
+  $('flatSub').textContent = rough ? 'rough ' + Math.ceil((rough / board.cut.length) * 100) + '%' : fl <= FLAT ? 'flat' : 'aim ' + U.small(FLAT);
+  $('flat').parentElement.classList.toggle('ok', !rough && fl <= FLAT);
+  const th = board.thinnest().t, margin = th - board.tmin, keep = keepFor(def);
   $('thick').textContent = U.thick(th);
-  $('line').textContent = 'line ' + U.line(board.tmin);
+  $('line').textContent = th >= keep ? 'keep ' + U.thick(keep) : 'line ' + U.line(board.tmin);
   scene.lineLabel = U.line(board.tmin) + ' line';
   // Amber once it's thinner than the thickness mark allows, red through the line.
   const st = $('thick').parentElement;
-  st.classList.toggle('warn', th < keepFor(def) && margin >= 0);
+  st.classList.toggle('warn', th < keep && margin >= 0);
   st.classList.toggle('over', margin < 0);
+  const spots = board.tornSpots();
+  $('torn').textContent = spots;
+  $('tornSub').textContent = spots === 1 ? 'spot' : 'spots';
+  $('torn').parentElement.classList.toggle('warn', spots > 0);
 }
 
 function describeLoupe() {

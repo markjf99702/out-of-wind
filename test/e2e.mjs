@@ -91,6 +91,9 @@ try {
   assert.equal(await page.textContent('#strokes'), '0');
   assert.match(await page.textContent('#par'), /^par \d+$/);
   assert.match(await page.textContent('#thick'), /^0\.\d{3}″$/, 'inches by default in the US');
+  assert.match(await page.textContent('#line'), /^keep 0\.\d{3}″$/, 'the thickness mark shows while planing');
+  assert.equal(await page.textContent('#torn'), '0', 'and the tear-out count');
+  assert.equal(await page.textContent('#flatSub'), 'rough 100%');
 
   step('pencil, then one real stroke of the jointer down the middle');
   await page.click('#pencilBtn');
@@ -209,6 +212,13 @@ try {
   assert.match(await page.textContent('.plank[data-no="1"] .grade'), /^(FAS|Select|No\. 1|No\. 2)$/);
   await page.click('#resumeBtn');
   assert.equal((await peek(page)).strokes, 2);
+
+  step('tear-out shows in the top bar as it happens');
+  await page.evaluate(() => { const b = window.outOfWind.board(); for (const y of [40, 75, 110]) window.outOfWind.swipe('jack', b.L + 200, -200, y); });
+  const torn = +(await page.textContent('#torn'));
+  assert.ok(torn > 0, 'against the grain it tears: ' + torn);
+  assert.equal(torn, (await peek(page)).torn);
+  assert.ok(await page.evaluate(() => document.getElementById('torn').parentElement.classList.contains('warn')), 'amber, the mark gone');
 
   step('through the gauge line: culled, and started again');
   await page.evaluate(() => {
