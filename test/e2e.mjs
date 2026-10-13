@@ -227,7 +227,7 @@ try {
   assert.equal(p.strokes, finishedAt.strokes);
   assert.match(await page.textContent('#resultMarks'), new RegExp(`${p.strokes} of ${p.par}`), 'the card counts the strokes the bench does');
   assert.equal(await page.textContent('#resultTitle'), 'Flat and out of wind');
-  assert.match(await page.textContent('#resultStamp'), /^(FAS|Select|No\. 1|No\. 2)$/);
+  assert.match(await page.textContent('#resultStamp'), /^(FAS|Select|#1 Com|#2 Com)$/);
   assert.equal(await page.locator('#resultMarks li').count(), 4);
   assert.equal(await page.textContent('#nextBtn'), 'Next: No. 2');
   const kept = await page.evaluate(() => JSON.parse(localStorage.getItem('out-of-wind.v1')));
@@ -253,7 +253,7 @@ try {
   await page.click('#backBtn');
   await page.waitForSelector('#home', { state: 'visible' });
   assert.equal(await page.textContent('#resumeBtn'), 'Back to No. 2 · Pine');
-  assert.match(await page.textContent('.plank[data-no="1"] .grade'), /^(FAS|Select|No\. 1|No\. 2)$/);
+  assert.match(await page.textContent('.plank[data-no="1"] .grade'), /^(FAS|Select|#1 Com|#2 Com)$/, 'a grade that can’t be read as a board number');
   await page.click('#resumeBtn');
   assert.equal((await peek(page)).strokes, 2);
 

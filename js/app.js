@@ -20,7 +20,7 @@ U.setUnit(state.unit || U.defaultUnit(navigator.language));
 sound.setSound(state.sound !== false);
 
 const GRADES = ['No. 2 Common', 'No. 1 Common', 'Select', 'FAS'];
-const SHORT = ['No. 2', 'No. 1', 'Select', 'FAS'];
+const SHORT = ['#2 Com', '#1 Com', 'Select', 'FAS']; // pencilled on a plank, the way a lumberyard marks them, and never "No. 1" beside board No. 1
 const scene = new Scene($('cv'));
 const stage = $('stage');
 
