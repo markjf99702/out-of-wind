@@ -75,6 +75,9 @@ export class Scene {
     this.eh = eh;
     this.lh = lh;
     this.ppm = clamp(s * this.dpr, 0.6, 1.6); // wood is soft: past this, more pixels only cost time
+    // Shavings already on the bench stay beside the board when it's laid out again (a phone turned on its side).
+    for (const f of this.pile) { f.u = clamp(f.u, 34, BU - 34); f.v = clamp(f.v, 22, Math.max(24, top - 10)); }
+    this.pileDrawn = Infinity;
     this.buildLayers();
   }
 
