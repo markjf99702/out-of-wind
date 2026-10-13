@@ -725,7 +725,7 @@ export class Scene {
     ctx.setLineDash([]);
     // Labels along the strip (on a phone they read up the strip, like the spine of a book).
     const lab = { font: '600 11px "Alegreya Sans", system-ui, sans-serif', color: 'rgba(243,233,216,.62)', base: 'top' };
-    const title = line ? (along ? 'Under the straightedge' : 'Across, under the straightedge') : 'Under the plane, from the side';
+    const title = line ? (along ? 'Under the straightedge' : 'Across, under the straightedge') + (line.words ? ': ' + line.words.label : '') : 'Under the plane, from the side';
     ctx.save();
     ctx.font = lab.font; ctx.fillStyle = lab.color; ctx.textBaseline = 'top';
     ctx.fillText(title.toUpperCase(), U + 4, V + H - 15);

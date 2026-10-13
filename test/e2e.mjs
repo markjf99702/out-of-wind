@@ -141,7 +141,8 @@ try {
   const along = await page.evaluate(() => { const s = window.outOfWind.scene.straight; return { x0: s.x0, x1: s.x1, y0: s.y0, y1: s.y1 }; });
   assert.ok(Math.abs(along.y0 - along.y1) < 1 && along.x1 - along.x0 > 600, 'laid the whole length along');
   assert.ok(p.straight > 0.25, 'light under it along the hollow: ' + p.straight);
-  assert.match(await page.textContent('#loupeNote'), /Light under the straightedge/);
+  assert.match(await page.textContent('#loupeNote'), /^Light in the middle, 0\.\d{3}″ at most: hollow here\./, 'it says what it sees');
+  assert.match(await page.textContent('#toast'), /^Light in the middle/, 'out loud, too');
   await mouseDrag(page, 300, 8, 300, 118);
   const across = await page.evaluate(() => { const s = window.outOfWind.scene.straight; return { x0: s.x0, x1: s.x1, y0: s.y0, y1: s.y1, W: window.outOfWind.board().W }; });
   assert.ok(Math.abs(across.x0 - across.x1) < 1 && across.y1 - across.y0 > across.W - 3, 'laid straight across');

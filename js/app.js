@@ -281,7 +281,8 @@ $('edgeBtn').addEventListener('click', () => {
   setMode('straightedge');
   if (!scene.straight) layStraightedge({ x: board.L * 0.5, y: board.W * 0.5 }, { x: board.L * 0.5 + 10, y: board.W * 0.5 }, true);
   else sound.tink();
-  hint('edge', 'Drag along or across the board to lay the straightedge somewhere else.');
+  if (state.seen.edge) toast(edgeWords(scene.straight).text, 4200);
+  hint('edge', 'Drag along or across the board to lay the straightedge somewhere else. It shows light wherever the face dips away beneath it.');
 });
 
 $('sticksBtn').addEventListener('click', () => {
@@ -303,8 +304,36 @@ function layStraightedge(a, b, quiet) {
   if (!seg) return;
   const res = board.straightedge(seg[0], seg[1], seg[2], seg[3]);
   scene.straight = { x0: seg[0], y0: seg[1], x1: seg[2], y1: seg[3], res };
-  if (!quiet) sound.tink();
+  scene.straight.words = edgeWords(scene.straight);
+  if (!quiet) { sound.tink(); toast(scene.straight.words.text, 4200); }
   syncLoupe();
+}
+
+// What the straightedge shows, in words: a sentence for the note, and a few for the side view.
+function edgeWords(st) {
+  const r = readEdge(st.res), g = U.small(r.gap);
+  const along = Math.abs(st.y1 - st.y0) < 1, across = Math.abs(st.x1 - st.x0) < 1;
+  // A point on it (a fraction along), as a place on the board.
+  const place = t => {
+    if (across) return t < 0.3 || t > 0.7 ? 'near one edge' : 'the middle';
+    const x = (st.x0 + (st.x1 - st.x0) * t) / board.L;
+    return x < 0.3 ? 'the near end' : x > 0.7 ? 'the far end' : 'the middle';
+  };
+  switch (r.kind) {
+    case 'none': return { label: 'no light', text: 'No light under the straightedge.' };
+    case 'hollow': return across
+      ? { label: 'light in the middle', text: `Light in the middle, ${g} at most: cupped here, the edges high. Plane the edges.` }
+      : { label: 'light in the middle', text: `Light in the middle, ${g} at most: hollow here. Full-length jointer strokes ride the high ends down.` };
+    case 'rocks': {
+      const at = place((r.t0 + r.t1) / 2);
+      return { label: 'rocks on ' + at, text: `It rocks on ${at}, with ${g} of light either side: that stands high. Plane where it touches${along ? ', with short strokes' : ''}.` };
+    }
+    case 'two': return { label: 'two high spots', text: `It rests on two high spots with ${g} of light between them. Plane where it touches.` };
+    default: {
+      const low = place(r.kind === 'start' ? 0 : 1);
+      return { label: 'light toward ' + low, text: `Light toward ${low}, ${g} at most: the face falls away there. Plane where it touches, not the low part.` };
+    }
+  }
 }
 
 // The part of the infinite line through (x, y) in direction (dx, dy) that lies on the board.
@@ -616,11 +645,10 @@ function describeLoupe() {
   if (!board) return;
   let text = '';
   if (scene.loupe.mode === 'straightedge' && scene.straight) {
-    const g = scene.straight.res.gap;
-    text = g < 0.05 ? 'No light under the straightedge.' : `Light under the straightedge: ${U.small(g)} at most.`;
+    text = scene.straight.words.text;
   } else if (scene.loupe.mode === 'sticks') {
     const w = board.wind().wind;
-    text = Math.abs(w) < 0.12 ? 'The winding sticks line up: out of wind.'
+    text = board.outOfWind() ? 'The winding sticks line up: out of wind.'
       : `The sticks don’t line up: ${U.small(Math.abs(w))} of wind, the ${w > 0 ? 'far right and near left' : 'far left and near right'} corners high.`;
   }
   $('loupeNote').textContent = text;
