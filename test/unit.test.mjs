@@ -277,6 +277,28 @@ test('how flat a face is reads finer than the aim, and never reads as the aim un
   assert.equal(U.flat(0.1504, 1), '0.151 mm');
 });
 
+test('a thickness under the line or the mark never reads the same as it, and a cull never says it went through by nothing', () => {
+  const num = t => parseFloat(t);
+  for (const unit of ['in', 'mm']) {
+    U.setUnit(unit);
+    const marks = [TABLETOP, ...BOARDS.map(keepFor)];
+    for (const mark of marks) {
+      for (let k = 1; k <= 200; k++) {
+        const under = mark - k * 0.0003; // up to 0.06 mm under
+        assert.ok(num(U.thick(under, -1)) < num(U.thick(mark)), `${unit}: ${under.toFixed(4)} mm reads ${U.thick(under, -1)} under ${U.thick(mark)}`);
+        assert.ok(num(U.flat(mark - under, 1)) > 0, `${unit}: ${(mark - under).toFixed(4)} mm through reads ${U.flat(mark - under, 1)}`);
+      }
+    }
+  }
+  U.setUnit('in');
+  assert.equal(U.thick(19.0499, -1), '0.749″', 'just through the line: not 0.750″ beside “line ¾″”');
+  assert.equal(U.thick(19.0499), '0.750″', 'rounded as before everywhere else');
+  assert.equal(U.flat(19.05 - 19.0499, 1), '0.0001″');
+  U.setUnit('mm');
+  assert.equal(U.thick(19.0499, -1), '19.04 mm');
+  assert.equal(U.flat(19.05 - 19.0499, 1), '0.001 mm');
+});
+
 test('a nearly flat face knows where it stands highest', () => {
   const b = plain({ humps: [[0.85, 0.85, 40, 25, 0.08]] }); // a patch by the far right corner
   const h = b.highest();

@@ -288,6 +288,8 @@ try {
   assert.equal(p.failed, true);
   assert.equal(await page.textContent('#resultStamp'), 'Cull');
   assert.equal(await page.textContent('#resultTitle'), 'Too thin for the tabletop');
+  assert.ok(parseFloat(await page.textContent('#thick')) < 0.75, 'the thinnest spot reads under ¾″: ' + await page.textContent('#thick'));
+  assert.match(await page.textContent('#resultNote'), /: 0\.\d*[1-9]\d*″ under ¾″\./, 'and the card says how far through, never nothing');
   assert.ok(await page.isHidden('#nextBtn'));
   assert.equal(await page.getAttribute('#againBtn', 'class'), 'go', 'starting again is the main button');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'againBtn', 'and it has the focus');

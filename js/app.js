@@ -738,10 +738,10 @@ function check() {
 }
 
 function evaluate() {
-  const th = board.thinnest().t, spots = board.tornSpots(), fl = board.flatness();
+  const th = board.thinnest().t, spots = board.tornSpots(), fl = board.flatness(), keep = keepFor(def), kept = th >= keep;
   const marks = [
     { ok: true, label: 'Flat', v: 'within ' + U.flat(fl, -1) },
-    { ok: th >= keepFor(def), label: th >= keepFor(def) ? 'Thickness kept' : 'Thickness', v: th >= keepFor(def) ? U.thick(th) : U.thick(th) + ', under ' + U.thick(keepFor(def)) },
+    { ok: kept, label: kept ? 'Thickness kept' : 'Thickness', v: kept ? U.thick(th) : U.thick(th, -1) + ', under ' + U.thick(keep) },
     { ok: spots === 0, label: spots ? 'Tear-out' : 'No tear-out', v: spots ? spots + (spots === 1 ? ' spot' : ' spots') : '' },
     { ok: strokes <= def.par, label: 'Within par', v: strokes + ' of ' + def.par },
   ];
@@ -762,9 +762,9 @@ function showResult(result) {
     li.innerHTML = `<span class="tick">${m.ok ? '✓' : '–'}</span><span>${esc(m.label)}</span><span class="v">${esc(m.v)}</span>`;
     ul.append(li);
   });
-  const next = BOARDS[def.no];
+  const next = BOARDS[def.no], th = board.thinnest().t; // the board as it was graded: nothing's been planed since
   $('resultNote').textContent = GRADES[result.marks - 1] + (result.marks === 4 ? ': the best grade there is.' : '.')
-    + ` ${U.thick(result.thick)} at its thinnest, ${U.small(result.thick - board.tmin)} above the line.`;
+    + ` ${U.thick(th, th < keepFor(def) ? -1 : 0)} at its thinnest, ${U.small(th - board.tmin)} above the line.`;
   // The last board, with every one done, goes on to the tabletop itself.
   $('nextBtn').hidden = !next && !allDone();
   $('nextBtn').textContent = next ? 'Next: No. ' + next.no : 'See the tabletop';
@@ -782,7 +782,7 @@ function showFailed() {
   $('resultTitle').textContent = 'Too thin for the tabletop';
   $('resultMarks').textContent = '';
   const where = th.i < board.NX / 3 ? 'near end' : th.i > (2 * board.NX) / 3 ? 'far end' : 'middle';
-  $('resultNote').textContent = `It went through the gauge line toward the ${where}: ${U.small(board.tmin - th.t)} under ${U.line(board.tmin)}. A plane takes the high spots first; take only those.`;
+  $('resultNote').textContent = `It went through the gauge line toward the ${where}: ${U.flat(board.tmin - th.t, 1)} under ${U.line(board.tmin)}. A plane takes the high spots first; take only those.`;
   $('nextBtn').hidden = true;
   $('againBtn').textContent = 'Start it again';
   $('againBtn').className = 'go'; // the only way on from a cull
@@ -822,7 +822,7 @@ function updateHud() {
   $('flatSub').textContent = rough ? 'rough ' + Math.ceil((rough / board.cut.length) * 100) + '%' : fl <= FLAT ? 'flat' : 'aim ' + U.flat(FLAT, -1);
   $('flat').parentElement.classList.toggle('ok', !rough && fl <= FLAT);
   const th = board.thinnest().t, margin = th - board.tmin, keep = keepFor(def);
-  $('thick').textContent = U.thick(th);
+  $('thick').textContent = U.thick(th, th < keep ? -1 : 0); // under the mark, it reads under it
   $('line').textContent = th >= keep ? 'keep ' + U.thick(keep) : 'line ' + U.line(board.tmin);
   scene.lineLabel = U.line(board.tmin) + ' line';
   // Amber once it's thinner than the thickness mark allows, red through the line.

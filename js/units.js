@@ -8,9 +8,13 @@ export const defaultUnit = lang => (/^en-(US|LR|MM)\b/i.test(lang || '') ? 'in' 
 
 const IN = 25.4;
 
-// A thickness: "20.41 mm" or "0.804″".
-export function thick(mm) {
-  return unit === 'in' ? (mm / IN).toFixed(3) + '″' : mm.toFixed(2) + ' mm';
+// A thickness: "20.41 mm" or "0.804″". side -1 rounds it down, for a thickness under the line or the
+// thickness mark, so it never reads the same as the line or the mark it's under.
+export function thick(mm, side = 0) {
+  const inch = unit === 'in', v = inch ? mm / IN : mm;
+  if (side >= 0) return inch ? v.toFixed(3) + '″' : v.toFixed(2) + ' mm';
+  const k = inch ? 1e3 : 1e2, n = Math.floor(v * k + 1e-6) / k;
+  return inch ? n.toFixed(3) + '″' : n.toFixed(2) + ' mm';
 }
 
 // A small amount, like a gap or how far out of flat: "0.12 mm" or "0.005″".
@@ -21,7 +25,8 @@ export function small(mm) {
 
 // How far from flat, a place finer than small(), since the last few thou are where a board is won:
 // "0.0062″" or "0.164 mm". side rounds it down (-1) or up (+1), so a face that isn't flat yet never
-// reads the same as what flat is, and one that is never reads more.
+// reads the same as what flat is, and one that is never reads more. Rounded up, it also says how far
+// through the line a cull went without ever saying nothing.
 export function flat(mm, side = 0) {
   const inch = unit === 'in', k = inch ? 1e4 : 1e3, v = (Math.max(0, mm) / (inch ? IN : 1)) * k;
   const n = side > 0 ? Math.ceil(v - 1e-6) : side < 0 ? Math.floor(v + 1e-6) : Math.round(v);
