@@ -159,14 +159,22 @@ try {
   await page.click('#sticksBtn');
 
   step('plane it flat (the solver’s strokes through the page), and grade it');
-  await page.evaluate(async () => {
+  const finish = await page.evaluate(async () => {
     const { solve } = await import('./js/solver.js');
     const { Board } = await import('./js/board.js');
     const { BOARDS } = await import('./js/boards.js');
     const copy = new Board(BOARDS[0]);
     copy.load(window.outOfWind.board().save());
-    for (const s of solve(copy).strokes) window.outOfWind.swipe(s.tool, s.x0, s.x1, s.y);
+    const t = document.getElementById('toast');
+    for (const s of solve(copy).strokes) {
+      window.outOfWind.toast('A note from the stroke before.'); // whatever was up when the last stroke went in
+      window.outOfWind.swipe(s.tool, s.x0, s.x1, s.y);
+      if (window.outOfWind.peek().done) return { up: t.classList.contains('on'), text: t.textContent };
+    }
+    return null;
   });
+  assert.ok(finish, 'the solver’s strokes finish it');
+  assert.equal(finish.up, false, 'nothing old is left up when it’s done: ' + finish.text);
   await page.waitForSelector('#result', { state: 'visible', timeout: 10000 });
   p = await peek(page);
   assert.equal(p.done, true);
@@ -233,7 +241,7 @@ try {
   assert.equal(await page.evaluate(() => JSON.parse(localStorage.getItem('out-of-wind.v1')).sound), false);
   await page.click('#menuClose');
 
-  step('stuck on a crowned board, the bench says what shape is left');
+  step('stuck on a crowned board, the bench says what shape is left, and again on the next attempt');
   await page.evaluate(() => {
     const s = JSON.parse(localStorage.getItem('out-of-wind.v1'));
     for (const n of [2, 3]) s.best[n] = { marks: 1, strokes: 99, thick: 19.2, torn: 0, flat: 0.1 };
@@ -243,7 +251,7 @@ try {
   await page.goto(base + '#4');
   await page.waitForSelector('#intro', { state: 'visible' });
   await page.click('#introGo');
-  const said = await page.evaluate(() => {
+  const fullPasses = () => page.evaluate(() => {
     const b = window.outOfWind.board(), t = document.getElementById('toast'), seen = [];
     for (let pass = 0; pass < 8 && !window.outOfWind.peek().failed; pass++) for (const y of [22, 67, 112, b.W - 22]) {
       window.outOfWind.swipe('jointer', -40, b.L + 40, y); // full passes: they just follow a crown down
@@ -251,7 +259,13 @@ try {
     }
     return seen;
   });
+  let said = await fullPasses();
   assert.ok(said.some(x => /^Still crowned\. /.test(x)), 'said: ' + said.join(' | '));
+  await page.click('#menuBtn');
+  await page.click('#restartBtn');
+  await page.click('#introGo');
+  said = await fullPasses();
+  assert.ok(said.some(x => /^Still crowned\. /.test(x)), 'said again after starting over: ' + said.join(' | '));
 
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'the bench scrolls sideways on a phone');
   await page.click('#backBtn');
