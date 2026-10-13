@@ -114,7 +114,7 @@ export function solve(board, opts = {}) {
   while (strokes.length < maxStrokes) {
     if (board.done()) {
       if (doneAt < 0) doneAt = strokes.length;
-      if (board.tornSpots() <= (opts.spots ?? 1) || extra >= (opts.cleanup ?? 40)) break;
+      if (board.tornSpots() <= (opts.spots ?? 1) || extra >= (opts.cleanup ?? 30)) break;
     }
     let emax = 0;
     for (let k = 0; k < floor.length; k++) emax = Math.max(emax, board.top[k] - floor[k]);
@@ -146,6 +146,23 @@ export function solve(board, opts = {}) {
           }
           if (!best || score > best.score) best = { score, tool, y, ...seg };
         }
+      }
+    }
+    if ((!best || best.score <= 0.001) && doneAt >= 0) {
+      // No single fine stroke helps without leaving a lane low, so try a whole smoother pass.
+      const pass = smootherPass(board);
+      restore(work, board);
+      const r0 = rand.state();
+      for (const st of pass) play(work, 'smoother', st.x0, st.x1, st.y, rand);
+      rand.set(r0);
+      if (work.done() && work.tornLeft() < board.tornLeft() && extra + pass.length <= (opts.cleanup ?? 30)) {
+        for (const st of pass) {
+          const res = play(board, 'smoother', st.x0, st.x1, st.y, rand);
+          strokes.push({ tool: 'smoother', ...st, cells: res.cells, torn: res.torn });
+          extra++;
+        }
+        if (opts.log) opts.log('smoother pass, tear-out left ' + board.tornSpots());
+        continue;
       }
     }
     if (!best || best.score <= 0.001) {
@@ -223,6 +240,21 @@ function segments(board, tool, y, tz, band) {
     const xa = a === 0 ? -over : a * dx, xb = b === NX - 1 ? L + over : (b + 1) * dx;
     if (d > 0) add(xa, xb); else add(xb, xa);
     proudPart(a, b, d);
+  }
+  return out;
+}
+
+// A fine pass right across the board: one full-length stroke per lane, each the way its grain runs.
+function smootherPass(board) {
+  const t = PLANES.smoother, out = [], over = t.len * 0.6;
+  const last = board.W - t.blade / 2 + 4;
+  for (let y = t.blade / 2 - 4; ; y += t.blade * 0.8) {
+    const yy = Math.min(y, last);
+    const j = Math.max(0, Math.min(board.NY - 1, Math.floor(yy / board.dy)));
+    let g = 0;
+    for (let i = 0; i < board.NX; i++) g += board.grain[i * board.NY + j];
+    out.push(g >= 0 ? { x0: -over, x1: board.L + over, y: yy } : { x0: board.L + over, x1: -over, y: yy });
+    if (yy >= last) break;
   }
   return out;
 }

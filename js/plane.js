@@ -14,11 +14,11 @@ export const PLANES = {
     what: 'Fourteen inches, with a curved edge set deep. It hogs off high spots fast and leaves a scalloped face.',
   },
   jointer: {
-    id: 'jointer', name: 'Jointer', full: 'Jointer plane', len: 560, sole: 73, blade: 60, depth: 0.15, camber: 0.03, tear: 0.45,
+    id: 'jointer', name: 'Jointer', full: 'Jointer plane', len: 560, sole: 73, blade: 60, depth: 0.09, camber: 0.025, tear: 0.45,
     what: 'Twenty-two inches long. It rides over hollows and takes the high spots down until the face is true.',
   },
   smoother: {
-    id: 'smoother', name: 'Smoother', full: 'Smoothing plane', len: 240, sole: 60, blade: 50, depth: 0.045, camber: 0.02, tear: 0.002,
+    id: 'smoother', name: 'Smoother', full: 'Smoothing plane', len: 240, sole: 60, blade: 50, depth: 0.035, camber: 0.015, tear: 0.002,
     what: 'Nine inches, set fine. It follows the face rather than flattening it, and gets through wild grain clean.',
   },
 };
@@ -146,7 +146,7 @@ export class Stroke {
       let chance = tear * t.tear * thin * (against ? 0.2 : Math.max(0, tear - 0.6) * 0.1);
       if (against && this.tearing[j] > 0) chance = Math.max(chance, 0.6 * this.tearing[j] * t.tear);
       if (rand() < chance) {
-        const pit = t.depth * (0.5 + 0.5 * rand()); // it breaks off a little below the cut
+        const pit = Math.min(0.1, t.depth) * (0.5 + 0.5 * rand()); // it breaks off a little below the cut
         top[id] -= pit;
         b.torn[id] = 1;
         res.torn++;

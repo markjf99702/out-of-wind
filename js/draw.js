@@ -721,7 +721,7 @@ export class Scene {
     ctx.fillStyle = 'rgba(232,217,182,.9)';
     ctx.fillRect(cx - span / 2, top - 2, 16, 4);
     ctx.fillRect(cx + span / 2 - 16, top - 2, 16, 4);
-    const msg = lined ? 'Out of wind' : (w.wind > 0 ? 'In wind: the far stick’s right end is high' : 'In wind: the far stick’s left end is high');
+    const msg = lined ? 'Out of wind' : (w.wind > 0 ? 'In wind: the far right and near left corners are high' : 'In wind: the far left and near right corners are high');
     this.text(ctx, msg, cx, V + H * 0.78, { align: 'center', color: lined ? '#cfe3b8' : 'rgba(243,233,216,.8)' });
   }
 }

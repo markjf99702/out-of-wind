@@ -36,7 +36,7 @@ export const WOODS = {
   },
   mahogany: {
     name: 'Mahogany', early: '#b4633f', late: '#8f4a2e', rough: '#a68673',
-    ring: 6, contrast: 0.35, pores: 0.25, rays: 0, tear: 0.6, hard: 0.45,
+    ring: 6, contrast: 0.35, pores: 0.25, rays: 0, tear: 0.5, hard: 0.45,
     note: 'Interlocked grain: stripes down the board run opposite ways.',
   },
   whiteoak: {

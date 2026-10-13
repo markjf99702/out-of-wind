@@ -1,7 +1,7 @@
 // Out of Wind: the page. The rack of boards, the bench, strokes from your finger, the checks,
 // the grading, and keeping each board you've started so you can come back to it.
 
-import { Board } from './board.js';
+import { Board, FLAT } from './board.js';
 import { Stroke, PLANES } from './plane.js';
 import { BOARDS, boardName } from './boards.js';
 import { WOODS, rgb } from './woods.js';
@@ -161,8 +161,8 @@ function openBoard(no, fresh = false) {
   $('home').hidden = true;
   $('bench').hidden = false;
   document.title = boardName(def, WOODS) + ' · Out of Wind';
-  $('boardName').textContent = boardName(def, WOODS);
-  $('boardTitle').textContent = def.title;
+  $('boardName').textContent = 'No. ' + def.no;
+  $('boardTitle').textContent = (def.panel ? 'Glued-up panel' : WOODS[def.wood].name) + ' · ' + def.title;
   scene.setBoard(board);
   scene.sticks = false;
   layout();
@@ -492,6 +492,9 @@ function restart() {
 function updateHud() {
   $('strokes').textContent = strokes;
   $('par').textContent = 'par ' + def.par;
+  const fl = board.flatness(), rough = board.roughLeft();
+  $('flat').textContent = U.small(fl);
+  $('flatSub').textContent = rough ? 'rough ' + Math.ceil((rough / board.cut.length) * 100) + '%' : fl <= FLAT ? 'flat' : 'to go';
   const th = board.thinnest().t, margin = th - board.tmin;
   $('thick').textContent = U.thick(th);
   $('line').textContent = 'line ' + U.line(board.tmin);
@@ -509,7 +512,8 @@ function describeLoupe() {
     text = g < 0.05 ? 'No light under the straightedge.' : `Light under the straightedge: ${U.small(g)} at most.`;
   } else if (scene.loupe.mode === 'sticks') {
     const w = board.wind().wind;
-    text = Math.abs(w) < 0.12 ? 'The winding sticks line up: out of wind.' : `The sticks don’t line up: ${U.small(Math.abs(w))} of wind.`;
+    text = Math.abs(w) < 0.12 ? 'The winding sticks line up: out of wind.'
+      : `The sticks don’t line up: ${U.small(Math.abs(w))} of wind, the ${w > 0 ? 'far right and near left' : 'far left and near right'} corners high.`;
   }
   $('loupeNote').textContent = text;
 }

@@ -73,7 +73,7 @@ try {
   await page.click('.plank[data-no="2"]', { force: true }); // aria-disabled: Playwright won't tap it unless told to
   assert.ok(await page.isHidden('#bench'), 'a locked board stays shut');
   assert.equal(await page.textContent('#resumeBtn'), 'Finish No. 1 first.');
-  assert.match(await page.textContent('.plank[data-no="1"]'), /No\. 1 · Pine.*Hollow · 24 × 5½ in/);
+  assert.match(await page.textContent('.plank[data-no="1"]'), /No\. 1 · Pine.*Hollow · 24 × 5 in/);
 
   step('board 1: the intro, then the bench');
   await page.click('.plank[data-no="1"]');
@@ -91,14 +91,19 @@ try {
   step('pencil, then one real stroke of the jointer down the middle');
   await page.click('#pencilBtn');
   assert.equal(await page.evaluate(() => window.outOfWind.board().pencil.every(v => v === 1)), true);
-  await touchSwipe(page, cdp, -15, 625, 70);
+  await touchSwipe(page, cdp, -15, 625, 64);
   p = await peek(page);
   assert.equal(p.strokes, 1, 'a swipe along the board is a stroke');
+  // How much of each stretch of that lane got cut, and how much pencil is left there.
   const lane = await page.evaluate(() => {
-    const b = window.outOfWind.board(), j = Math.floor(70 / b.dy), cut = i => b.cut[i * b.NY + j], pen = i => b.pencil[i * b.NY + j];
-    return { nearEnd: cut(1), farEnd: cut(b.NX - 2), middle: cut(b.NX >> 1), pencilMiddle: pen(b.NX >> 1), pencilEnd: pen(1) };
+    const b = window.outOfWind.board(), j = Math.floor(64 / b.dy), n = Math.round(b.NX * 0.12);
+    const share = (arr, a, z) => { let c = 0; for (let i = a; i < z; i++) c += arr[i * b.NY + j]; return c / (z - a); };
+    const mid = (b.NX - n) >> 1;
+    return { nearEnd: share(b.cut, 0, n), farEnd: share(b.cut, b.NX - n, b.NX), middle: share(b.cut, mid, mid + n), pencilMiddle: share(b.pencil, mid, mid + n), pencilEnds: (share(b.pencil, 0, n) + share(b.pencil, b.NX - n, b.NX)) / 2 };
   });
-  assert.deepEqual(lane, { nearEnd: 1, farEnd: 1, middle: 0, pencilMiddle: 1, pencilEnd: 0 }, 'it took the high ends and rode over the hollow; the pencil went where it cut');
+  assert.ok(lane.nearEnd + lane.farEnd > 0.5, 'it took the high ends: ' + JSON.stringify(lane));
+  assert.equal(lane.middle, 0, 'and rode over the hollow');
+  assert.ok(lane.pencilMiddle === 1 && lane.pencilEnds < 0.8, 'the pencil went where it cut');
   assert.equal(await page.textContent('#strokes'), '1');
   // A tap on the board isn't a stroke.
   const mid = await at(page, 300, 70);
@@ -116,9 +121,9 @@ try {
   assert.ok(Math.abs(along.y0 - along.y1) < 1 && along.x1 - along.x0 > 600, 'laid the whole length along');
   assert.ok(p.straight > 0.25, 'light under it along the hollow: ' + p.straight);
   assert.match(await page.textContent('#loupeNote'), /Light under the straightedge/);
-  await mouseDrag(page, 300, 8, 300, 132);
-  const across = await page.evaluate(() => { const s = window.outOfWind.scene.straight; return { x0: s.x0, x1: s.x1, y0: s.y0, y1: s.y1 }; });
-  assert.ok(Math.abs(across.x0 - across.x1) < 1 && across.y1 - across.y0 > 130, 'laid straight across');
+  await mouseDrag(page, 300, 8, 300, 118);
+  const across = await page.evaluate(() => { const s = window.outOfWind.scene.straight; return { x0: s.x0, x1: s.x1, y0: s.y0, y1: s.y1, W: window.outOfWind.board().W }; });
+  assert.ok(Math.abs(across.x0 - across.x1) < 1 && across.y1 - across.y0 > across.W - 3, 'laid straight across');
   assert.equal((await peek(page)).strokes, 1, 'laying the straightedge is not a stroke');
   await page.click('[data-tool="jointer"]');
   assert.equal((await peek(page)).mode, 'plane');

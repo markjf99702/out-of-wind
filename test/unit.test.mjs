@@ -6,7 +6,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Board, restLine, FLAT, TABLETOP } from '../js/board.js';
 import { Stroke, PLANES, stroke } from '../js/plane.js';
-import { BOARDS } from '../js/boards.js';
+import { BOARDS, parFor } from '../js/boards.js';
 import { WOODS } from '../js/woods.js';
 import { solve, aim } from '../js/solver.js';
 import { rng } from '../js/rng.js';
@@ -59,8 +59,8 @@ test('on a crown the jointer cuts the middle and leaves the low ends', () => {
 });
 
 test('the smoother dips into a broad hollow that the jointer bridges', () => {
-  // Over the jointer's length it sags 0.17 mm, more than its cut; over the smoother's, 0.035, less than its cut.
-  const dip = { humps: [[0.5, 0.5, 330, 3000, -0.55]] };
+  // Over the jointer's length it sags 0.12 mm, more than its cut; over the smoother's, 0.024, less than its cut.
+  const dip = { humps: [[0.5, 0.5, 400, 3000, -0.55]] };
   const j = plain(dip), s = plain(dip);
   const mid = j.NX >> 1, col = j.NY >> 1;
   stroke(j, 'jointer', -300, 1100, 90, 90, rng(1));
@@ -169,7 +169,7 @@ test('the solver flattens board 1 at its par and its best', () => {
   const b = new Board(BOARDS[0]);
   const r = solve(b);
   assert.equal(r.done, true);
-  assert.equal(r.par, BOARDS[0].par);
+  assert.equal(parFor(r.par), BOARDS[0].par);
   assert.ok(Math.abs(r.thinnest - BOARDS[0].best) < 0.02, 'thinnest ' + r.thinnest);
   assert.ok(b.flatness() <= FLAT);
 });

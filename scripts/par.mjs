@@ -1,4 +1,5 @@
-// Works out each board's rough thickness (t0), par and best finish by letting the solver plane it:
+// Works out each board's rough thickness (t0), par and best finish by letting the solver plane it
+// (par is the solver's strokes with a tenth more; see parFor in js/boards.js):
 //   node scripts/par.mjs            prints the table
 //   node scripts/par.mjs --write    also writes the numbers into js/boards.js
 //   node scripts/par.mjs 3 7        only boards 3 and 7
@@ -8,7 +9,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Board, TABLETOP } from '../js/board.js';
-import { BOARDS } from '../js/boards.js';
+import { BOARDS, parFor } from '../js/boards.js';
 import { solve } from '../js/solver.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -25,8 +26,9 @@ for (const def of BOARDS) {
   const t0 = +(22 + TABLETOP + def.spare - r.thinnest).toFixed(2);
   const best = +(TABLETOP + def.spare).toFixed(2);
   const tools = r.strokes.slice(0, r.par).reduce((m, s) => ((m[s.tool] = (m[s.tool] || 0) + 1), m), {});
-  results.push({ no: def.no, t0, par: r.par, best });
-  console.log(`No. ${String(def.no).padStart(2)}  t0 ${t0.toFixed(2)}  par ${String(r.par).padStart(3)}  best ${best.toFixed(2)}  `
+  const par = parFor(r.par);
+  results.push({ no: def.no, t0, par, best });
+  console.log(`No. ${String(def.no).padStart(2)}  t0 ${t0.toFixed(2)}  par ${String(par).padStart(3)} (solver ${r.par})  best ${best.toFixed(2)}  `
     + `(${Object.entries(tools).map(([k, v]) => k + ' ' + v).join(', ')}; tear-out left ${r.torn}; ${Math.round(performance.now() - t)} ms)`);
 }
 
