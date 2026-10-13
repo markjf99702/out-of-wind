@@ -29,6 +29,7 @@ let strokes = 0, tool = state.tool || 'jointer', mode = 'plane';
 let stroke = null, shaving = null, finished = false, failed = false, keepGoing = false;
 let edgeFrom = null, hover = false;
 let windWas = 0; // how far out of wind the board was, to notice when the sticks line up
+let flatLog = []; // flatness after each stroke, to notice when it stops coming down
 
 // ---------- the rack ----------
 const unlocked = no => no === 1 || !!state.best[no - 1];
@@ -154,7 +155,7 @@ function openBoard(no, fresh = false) {
   def = BOARDS[no - 1];
   board = new Board(def);
   const saved = !fresh && state.benches[no];
-  strokes = 0; finished = false; failed = false; keepGoing = false; mode = 'plane';
+  strokes = 0; finished = false; failed = false; keepGoing = false; mode = 'plane'; flatLog = [];
   rand = rng(def.seed * 7919 + (state.attempts[no] || 0) * 104729 + 1);
   scene.scribbleSeed = null;
   let resumed = false;
@@ -410,11 +411,13 @@ function endStroke() {
   const gapBefore = scene.straight ? scene.straight.res.gap : null;
   if (scene.straight) layStraightedge({ x: scene.straight.x0, y: scene.straight.y0 }, { x: scene.straight.x1, y: scene.straight.y1 }, true);
   syncLoupe();
+  if (r.counts) flatLog.push(board.flatness());
   if (board.thinnest().t >= board.tmin) {
     const wind = Math.abs(board.wind().wind);
     if (r.counts && !r.cells) hint('nocut', 'Nothing to cut there: the sole is riding on higher wood. Try beside it, or another plane.');
     else if (windWas > 0.3 && wind < 0.12) { toast('The winding sticks line up: out of wind.'); sound.tock(); }
     else if (gapBefore > 0.08 && scene.straight.res.gap < 0.04) { toast('No light under the straightedge.'); sound.tink(); }
+    else if (r.counts && stuck()) { /* said what's left */ }
     else if (r.fullLength && r.fullWidth) toast('A full-length shaving.');
     else if (r.counts) coach(r);
     windWas = Math.max(wind, windWas > 0.3 && wind >= 0.12 ? windWas : wind);
@@ -433,6 +436,28 @@ function coach(r) {
   else if (no <= 2 && rough && fl < 0.3 && rough < board.cut.length * 0.06) hint('edges', 'Nearly flat. Let the plane hang off the edges to reach the last rough strips.');
   else if (no === 3 && strokes === 4 && Math.abs(board.wind().wind) > 0.3) hint('c3', 'Still in wind? Straight full-length strokes can’t take out twist. Work the two high corners.');
   if (fl <= FLAT && rough && rough < board.cut.length * 0.03) toast('Flat, but rough-sawn spots are left ' + roughWhere() + '.', 3600);
+}
+
+// Once on each board: when eight strokes haven't brought the face any nearer flat, say what shape
+// is left and what takes it out.
+function stuck() {
+  const n = flatLog.length, now = flatLog[n - 1];
+  if (n < 9 || now <= 2 * FLAT || now < flatLog[n - 9] * 0.9 || state.seen['stuck' + def.no]) return false;
+  const sh = board.shape(), bow = Math.abs(sh.bow), cup = Math.abs(sh.cup), twist = 2 * Math.abs(sh.twist);
+  let text;
+  if (twist >= bow && twist >= cup) {
+    text = `Still in wind. Straight passes take an even shaving off a twisted face: plane the high corners, ${sh.twist > 0 ? 'far right and near left' : 'far left and near right'}.`;
+  } else if (cup >= bow) {
+    text = sh.cup > 0 ? 'Still cupped, the edges high. Passes down the middle lower the whole face; plane just the edge lanes until a straightedge across sits flat.'
+      : 'Still high along the middle. Plane the middle lanes until a straightedge laid across stops rocking.';
+  } else {
+    text = sh.bow > 0 ? 'Still hollow. Keep taking full-length jointer strokes: it rides on the high ends.'
+      : 'Still crowned. Full-length strokes just follow it down: take short strokes on the high middle and leave the ends.';
+  }
+  state.seen['stuck' + def.no] = 1;
+  save(state);
+  toast(text, 6500);
+  return true;
 }
 
 // Where the last rough cells are, in words: "near the far end, along the left edge".

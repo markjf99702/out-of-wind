@@ -148,6 +148,31 @@ export class Board {
     return hi > lo ? hi - lo : 0;
   }
 
+  // What's left of the face's shape once its best plane is taken away, in the three parts a
+  // woodworker names, each as a height in mm (least squares): bow, the ends standing above the
+  // middle (-: a crown along); cup, the edges standing above the middle across (-: high along the
+  // middle); and twist, how far each of one pair of opposite corners stands high (+: the far right
+  // and near left, as the winding sticks say it).
+  shape(f = this.fit()) {
+    const { NX, NY, top, torn } = this;
+    let m1 = 0, m2 = 0, n = 0;
+    for (let i = 0; i < NX; i++) { const xn = (2 * this.xOf(i)) / this.L - 1; for (let j = 0; j < NY; j++) { const yn = (2 * this.yOf(j)) / this.W - 1; m1 += xn * xn; m2 += yn * yn; n++; } }
+    m1 /= n; m2 /= n;
+    let s1 = 0, s2 = 0, s3 = 0, q1 = 0, q2 = 0, q3 = 0;
+    for (let i = 0; i < NX; i++) {
+      const xc = this.xOf(i) - this.L / 2, xn = (2 * xc) / this.L;
+      for (let j = 0; j < NY; j++) {
+        const k = i * NY + j;
+        if (torn[k]) continue;
+        const yc = this.yOf(j) - this.W / 2, yn = (2 * yc) / this.W;
+        const r = top[k] - (f.a + f.b * xc + f.c * yc);
+        const b1 = xn * xn - m1, b2 = yn * yn - m2, b3 = xn * yn;
+        s1 += r * b1; q1 += b1 * b1; s2 += r * b2; q2 += b2 * b2; s3 += r * b3; q3 += b3 * b3;
+      }
+    }
+    return { bow: q1 ? s1 / q1 : 0, cup: q2 ? s2 / q2 : 0, twist: q3 ? s3 / q3 : 0 };
+  }
+
   // The thinnest the board is anywhere (mm), and where.
   thinnest() {
     let t = Infinity, at = 0;

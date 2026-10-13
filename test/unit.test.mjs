@@ -127,6 +127,18 @@ test('winding sticks see twist, and a straightedge sees light in a hollow', () =
   assert.ok(across.gap > 0.6, 'light under a cup');
 });
 
+test('the shape that’s left is named: bow, cup or twist', () => {
+  const near = (v, want, msg) => assert.ok(Math.abs(v - want) < 0.03, `${msg}: ${v.toFixed(3)} vs ${want}`);
+  let sh = plain({ bow: 0.6 }).shape();
+  near(sh.bow, 0.6, 'ends high'); near(sh.cup, 0, 'no cup'); near(sh.twist, 0, 'no twist');
+  sh = plain({ bow: -0.4, cup: 0.3 }).shape();
+  near(sh.bow, -0.4, 'a crown'); near(sh.cup, 0.3, 'edges high');
+  sh = plain({ twist: 0.5 }).shape();
+  near(sh.twist, 0.5, 'twist');
+  assert.ok(plain({ twist: 0.5 }).wind().wind > 0, 'the same sign the winding sticks give');
+  near(plain({}).shape().bow, 0, 'flat');
+});
+
 test('flatness and thickness', () => {
   const b = plain({});
   assert.ok(b.flatness() < 1e-3);
