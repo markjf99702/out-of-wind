@@ -42,7 +42,7 @@ function renderRack() {
     btn.type = 'button';
     btn.className = 'plank';
     btn.dataset.no = d.no;
-    const wood = d.panel ? WOODS.walnut : WOODS[d.wood];
+    const wood = WOODS[d.panel ? d.strips[d.strips.length >> 1].wood : d.wood]; // the plank shows a panel's middle board
     const [r, g, b] = rgb(wood.early);
     if (0.299 * r + 0.587 * g + 0.114 * b < 140) btn.classList.add('dark');
     const cvs = document.createElement('canvas');
