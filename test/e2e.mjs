@@ -1,11 +1,13 @@
 // Plays Out of Wind in Chromium through the real page:  node test/e2e.mjs  (needs Playwright)
-// On a phone: opens the first board, scribbles pencil, takes a real touch stroke with the jointer
-// and checks it rode the hollow, lays the straightedge and the winding sticks, finishes the board,
-// grades it and unlocks the next, keeps a board part-way through a reload, goes through the gauge
-// line and starts again, switches units, and on a crowned board planed the obvious way, says what
-// shape is left. Then on a laptop and a phone on its side, and the checks every project wants: no
-// errors, nothing loaded from elsewhere, nothing scrolling sideways, installable, and it still plays
-// offline.
+// On a phone: a locked board says which to finish first, by the plank you tapped; the first board
+// shows a stroke starting on the board; pencil, then a real touch stroke with the jointer that rides
+// the hollow; strokes that cut nothing are free and say why; the straightedge and the winding sticks
+// say what they see; the board is finished, graded (with no stale note left up) and unlocks the next;
+// a board keeps part-way through a reload; tear-out shows in the top bar; it goes through the gauge
+// line and starts again; a finished board opens fresh to plane again; units; and on a crowned board
+// planed the obvious way, the bench says what shape is left, again on a second attempt. Then on a
+// laptop and a phone on its side, and the checks every project wants: no errors, nothing loaded from
+// elsewhere, nothing scrolling sideways, installable, and it still plays offline.
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -100,6 +102,9 @@ try {
   assert.ok(await page.isHidden('#intro'));
   assert.equal(await page.textContent('#toast'), 'Swipe along the board, end to end, to take a stroke.', 'the first board shows what a stroke is');
   assert.ok(await page.evaluate(() => !!window.outOfWind.scene.ghost));
+  // The demonstration starts where a finger can: on the board, above the tool tray.
+  const ghostStart = await at(page, 8, 64), tray = await page.locator('.tray').boundingBox();
+  assert.ok(ghostStart.y < tray.y - 10, `the ghost starts on the bench (${Math.round(ghostStart.y)}), not under the tray (${Math.round(tray.y)})`);
   let p = await peek(page);
   assert.equal(p.no, 1);
   assert.equal(p.strokes, 0);

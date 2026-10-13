@@ -55,7 +55,8 @@ export class Scene {
 
   layout() {
     const b = this.board, BU = this.BU, BV = this.BV;
-    const eh = 13, gap = 10, pad = this.portrait ? 10 : 14, ends = 26;
+    // ends: room past each end of the board, so a stroke can start just off it.
+    const eh = 13, gap = 10, pad = this.portrait ? 10 : 14, ends = 34;
     // The side view gets whatever room is left across once the board is as long as it can be (with
     // some left for the shavings), between a fifth and three-tenths of the bench.
     const spare = BV - b.W * ((BU - 2 * ends - 8) / b.L) - eh - gap - pad - 70;
@@ -507,12 +508,13 @@ export class Scene {
     ctx.restore();
   }
 
-  // The first board shows what a stroke is: a faint plane glides from the near end to the far end.
+  // The first board shows what a stroke is: a faint plane glides from the near end to the far end,
+  // its mouth (where your finger goes) starting on the board, just in from the end.
   drawGhost(ctx, now) {
     const g = this.ghost, b = this.board, s = this.s, dur = 1800, t = (now - g.t0) / dur;
     if (t >= 1.3) { this.ghost = null; return; }
     const e = 0.5 - 0.5 * Math.cos(Math.PI * clamp(t, 0, 1));
-    const x = -60 + (b.L + 120) * e;
+    const x = 8 + (b.L - 16) * e;
     const fade = t < 0.12 ? t / 0.12 : t > 1 ? Math.max(0, 1 - (t - 1) / 0.3) : 1;
     ctx.save();
     ctx.translate(this.u0 + x * s, this.v0 + g.y * s);
