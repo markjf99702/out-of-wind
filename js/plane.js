@@ -22,7 +22,6 @@ export const PLANES = {
     what: 'Nine inches, set fine. It follows the face rather than flattening it, and gets through wild grain clean.',
   },
 };
-export const PLANE_IDS = ['jack', 'jointer', 'smoother'];
 
 const XS = new Float64Array(1024), ZS = new Float64Array(1024);
 const HX = new Float64Array(1024), HZ = new Float64Array(1024);

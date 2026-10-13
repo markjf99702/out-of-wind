@@ -379,11 +379,13 @@ function endStroke() {
   if (!hover) scene.plane.show = false;
   if (r.counts) strokes++;
   scene.refit();
-  if (r.counts && !r.cells) hint('nocut', 'Nothing to cut there: the sole is riding on higher wood. Try beside it, or another plane.');
-  else if (r.fullLength && r.fullWidth) toast('A full-length shaving.');
-  else if (r.counts) coach(r);
   if (scene.straight) layStraightedge({ x: scene.straight.x0, y: scene.straight.y0 }, { x: scene.straight.x1, y: scene.straight.y1 }, true);
   syncLoupe();
+  if (board.thinnest().t >= board.tmin) {
+    if (r.counts && !r.cells) hint('nocut', 'Nothing to cut there: the sole is riding on higher wood. Try beside it, or another plane.');
+    else if (r.fullLength && r.fullWidth) toast('A full-length shaving.');
+    else if (r.counts) coach(r);
+  }
   check();
   updateHud();
   persist();
@@ -416,6 +418,8 @@ function check() {
   const th = board.thinnest();
   if (th.t < board.tmin) {
     failed = true;
+    clearTimeout(toastTimer);
+    $('toast').classList.remove('on');
     scene.mark = { x: board.xOf(th.i), y: board.yOf(th.j) };
     sound.thud();
     persist();

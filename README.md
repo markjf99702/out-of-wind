@@ -13,11 +13,13 @@
 - **Straightedge.** Drag along or across the board to lay it down. The side view shows light under it wherever the face dips away.
 - **Winding sticks.** Two sticks across the ends, and a view sighting down them: an even sliver of the far stick over the near one when the face is out of wind, a wedge when it's twisted.
 - **The side view** under the board (beside it on a phone) shows the face along the line you're working, magnified, with the plane's sole riding on it and the dashed gauge line three-quarters of an inch up from the underside.
-- **Read the grain.** The lines on the board's edge slope down the way to plane. Go the other way and the grain tears out with a crackle, leaving torn fibres you'll have to plane out. Curly maple turns every inch and interlocked mahogany turns in stripes, so on those only the smoother gets through clean.
+- **The top bar** counts strokes against par, says how far the face is from flat (and how much is still rough-sawn), and gives the thinnest spot against the line.
+- **Read the grain.** The lines along the board's front edge are the fibres running out to the face, and they slope down into the board the way to plane. Go the other way and the grain tears out with a crackle, leaving torn fibres you'll have to plane out. Curly maple turns every inch and interlocked mahogany turns in stripes, so on those only the smoother gets through clean.
+- **Twist and crowns.** Long straight strokes take an even shaving off a twisted face or a crown without changing its shape, so those need short strokes on the high spots, or a stroke from one high corner diagonally to the other. The early boards say what just happened as you go.
 - **Thirteen boards:** pine, poplar, ash, red oak, cherry, walnut, mahogany, quartersawn white oak, hard maple and curly maple, each warped its own way, then a panel glued up from walnut, maple and cherry with the middle board turned end for end and standing proud. Each opens when you finish the one before.
 - **A board is done when it's flat and planed all over.** Then it gets a mark each for thickness kept, no tear-out and strokes within par, and a lumber grade: FAS for all of them, then Select, No. 1 Common and No. 2 Common. Go through the gauge line anywhere and the board's a cull.
 - **Par, and the thickness each board starts at, come from a solver** that planes every board the way a careful woodworker would: it works out the plane that leaves the board thickest, never planes past it, goes with the grain, and gets below any tear-out at the end. So every board can be done within par and above the line.
-- No account and no server. Your grades and any board you're part-way through stay in your browser. It works offline and installs to a phone's home screen. Inches in the US, millimetres elsewhere; switch in the menu.
+- No account and no server. Your grades and any board you're part-way through stay in your browser. It works offline and installs to a phone's home screen. Inches in the US, millimetres elsewhere; switch in the menu. On a keyboard, 1, 2 and 3 pick the planes, and P, E and W the pencil, straightedge and winding sticks.
 
 ## Running it
 

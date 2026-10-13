@@ -14,13 +14,6 @@ export function rng(seed) {
   return next;
 }
 
-// A normally distributed number (Box-Muller).
-export function gauss(r) {
-  let u = 0;
-  while (u === 0) u = r();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * r());
-}
-
 // Smooth value noise on a lattice: a field that wanders gently, made from a seed.
 // cell is the lattice spacing in the same units as x and y.
 export function noise2(seed, cell) {
@@ -37,11 +30,4 @@ export function noise2(seed, cell) {
     const a = h(i, j), b = h(i + 1, j), c = h(i, j + 1), d = h(i + 1, j + 1);
     return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
   };
-}
-
-// A stable 32-bit hash of a string, for turning names into seeds.
-export function hashStr(s) {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
-  return h >>> 0;
 }

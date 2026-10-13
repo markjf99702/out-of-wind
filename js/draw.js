@@ -7,7 +7,7 @@
 //   the board, then its front edge (where you read the grain)
 //   below: the side view, magnified: the face along one line, the gauge line, the plane or straightedge
 
-import { WOODS, rgb } from './woods.js';
+import { rgb } from './woods.js';
 import { PLANES } from './plane.js';
 import { woodTextures, canvas } from './wood.js';
 import { rng } from './rng.js';
@@ -55,7 +55,7 @@ export class Scene {
   layout() {
     const b = this.board, BU = this.BU, BV = this.BV;
     const lh = clamp(Math.round(BV * 0.2), 64, 104); // the side view's height
-    const eh = 9, gap = 12, pad = this.portrait ? 10 : 14, ends = 26;
+    const eh = 13, gap = 10, pad = this.portrait ? 10 : 14, ends = 26;
     const s = Math.min((BU - 2 * ends - 8) / b.L, (BV - lh - eh - gap - pad - 30) / b.W);
     this.s = s;
     this.bw = b.L * s; this.bh = b.W * s;
@@ -66,6 +66,7 @@ export class Scene {
     this.v0 = top;
     this.edgeV = top + this.bh;
     this.lv0 = this.edgeV + eh + gap;
+    this.eh = eh;
     this.lh = lh;
     this.ppm = clamp(s * this.dpr, 0.6, 3.2);
     this.buildLayers();
@@ -366,7 +367,7 @@ export class Scene {
     ctx.fillStyle = 'rgba(255,230,190,.12)';
     ctx.fillRect(u0 + bw + 2, v0 - 6, 2, bh + 12);
     ctx.drawImage(this.edges.end, u0 - 7, v0, 7, bh);
-    ctx.drawImage(this.edges.edge, u0, this.edgeV, bw, 9);
+    ctx.drawImage(this.edges.edge, u0, this.edgeV, bw, this.eh);
 
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
@@ -403,31 +404,31 @@ export class Scene {
   }
 
   // The front edge, where you read the grain, and the end grain at the near end.
+  // The lines are the fibres running out to the face: they slope down into the board the way to plane.
   drawEdges() {
     const b = this.board, ppm = this.ppm;
-    const w = Math.round(b.L * ppm), eh = Math.max(4, Math.round(9 * this.dpr));
+    const w = Math.round(b.L * ppm), eh = Math.max(6, Math.round(13 * this.dpr));
     const edge = canvas(w, eh), ec = edge.getContext('2d');
     const j = b.NY - 1, wood = b.wood(j), early = wood.early, late = rgb(wood.late);
     ec.fillStyle = early;
     ec.fillRect(0, 0, w, eh);
-    ec.fillStyle = 'rgba(0,0,0,.22)';
+    ec.fillStyle = 'rgba(0,0,0,.18)';
     ec.fillRect(0, 0, w, eh);
-    ec.strokeStyle = `rgba(${late[0] * 0.8 | 0},${late[1] * 0.75 | 0},${late[2] * 0.7 | 0},.9)`;
-    ec.lineWidth = Math.max(1, ppm * 0.7);
-    // Lines that run out to the face: they slope down the way you should plane.
+    ec.strokeStyle = `rgba(${late[0] * 0.62 | 0},${late[1] * 0.55 | 0},${late[2] * 0.5 | 0},.95)`;
+    ec.lineWidth = Math.max(1.2, 1.5 * this.dpr);
+    ec.lineCap = 'round';
     const r = rng(b.def.seed + 5);
-    const pitch = Math.max(5, wood.ring * 1.2) * ppm;
-    for (let px = -eh * 2; px < w + eh * 2; px += pitch * (0.7 + r() * 0.6)) {
-      const i = clamp(Math.floor(px / ppm / b.dx), 0, b.NX - 1);
+    const pitch = eh * 1.5, run = eh * 1.25;
+    for (let px = -run; px < w + run; px += pitch * (0.85 + r() * 0.3)) {
+      const i = clamp(Math.floor((px + run / 2) / ppm / b.dx), 0, b.NX - 1);
       const g = b.grain[i * b.NY + j];
-      const run = eh * (1.6 + r() * 0.8);
       ec.beginPath();
-      ec.moveTo(px, 0);
-      ec.lineTo(px + g * run, eh);
+      ec.moveTo(px, 0.5);
+      ec.quadraticCurveTo(px + g * run * 0.45, eh * 0.45, px + g * run, eh - 0.5);
       ec.stroke();
     }
-    ec.fillStyle = 'rgba(255,240,210,.18)';
-    ec.fillRect(0, 0, w, Math.max(1, eh * 0.12));
+    ec.fillStyle = 'rgba(255,240,210,.22)';
+    ec.fillRect(0, 0, w, Math.max(1, eh * 0.1));
     // End grain: growth rings in section.
     const hh = Math.round(b.W * ppm), ew = Math.max(4, Math.round(7 * this.dpr));
     const end = canvas(ew, hh), nc = end.getContext('2d');
@@ -633,7 +634,6 @@ export class Scene {
     for (let q = 0; q < n; q++) { zTop = Math.max(zTop, zs[q]); zBot = Math.min(zBot, gz[q]); }
     const range = Math.max(0.5, zTop - zBot + 0.15);
     const mag = clamp((H - 22) / range, 14, 110); // pixels per millimetre, up and down
-    this.loupeMag = mag;
     const vy = z => V + 9 + (zTop - z) * mag;
     // The wood.
     const wood = b.wood(Math.floor(clamp(y, 0, b.W - 1) / b.dy)), c = rgb(wood.early);
@@ -660,7 +660,6 @@ export class Scene {
     for (let q = 0; q < n; q++) q ? ctx.lineTo(xu(q), vy(gz[q])) : ctx.moveTo(xu(q), vy(gz[q]));
     ctx.stroke();
     ctx.setLineDash([]);
-    this.loupeInfo = { along, ua, ub, n, zs, vy, xu };
     // Labels along the strip (on a phone they read up the strip, like the spine of a book).
     const lab = { font: '600 11px "Alegreya Sans", system-ui, sans-serif', color: 'rgba(243,233,216,.62)', base: 'top' };
     const title = line ? (along ? 'Under the straightedge' : 'Across, under the straightedge') : 'Under the plane, from the side';
@@ -715,7 +714,6 @@ export class Scene {
     const b = this.board, w = b.wind();
     const lined = Math.abs(w.wind) < 0.12;
     const ang = lined ? 0 : clamp(Math.atan((w.wind / b.W) * 12), -0.16, 0.16);
-    this.windAngle = ang;
     const cx = U + bw / 2, top = V + H * 0.5;
     const span = Math.min(bw * 0.86, 300), far = span * 0.82;
     // The far stick: pale, dark inlays at its ends, pivoting about its middle.
@@ -864,7 +862,7 @@ function drawLoose(ctx, f, u, v, rot, s) {
   const R = clamp(5 + Math.sqrt(f.len) * 0.42, 5, 17) * scale; // outer radius of the curl
   const turns = clamp(1.1 + f.len / 300, 1.1, 2.4);
   const lw = clamp(f.w * s * 0.1, 2.2, 6) * (0.8 + 0.2 * scale); // the ribbon, seen mostly edge-on
-  const tail = clamp(f.len * s * 0.04, 0, 22);
+  const tail = clamp(f.len * s * 0.02, 0, 9);
   const squash = 0.75 + (seed % 0.25);
   const path = () => {
     ctx.beginPath();
@@ -875,9 +873,9 @@ function drawLoose(ctx, f, u, v, rot, s) {
       const x = Math.cos(a) * r, y = Math.sin(a) * r * squash;
       k ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
     }
-    // the end that ran out straight before it curled
-    const a = turns * Math.PI * 2;
-    ctx.lineTo(Math.cos(a) * R + tail, Math.sin(a) * R * squash + tail * 0.25);
+    // the end that ran out before it curled, bending away
+    const a = turns * Math.PI * 2, ex = Math.cos(a) * R, ey = Math.sin(a) * R * squash;
+    ctx.quadraticCurveTo(ex + tail * 0.6, ey - tail * 0.5, ex + tail, ey - tail * 0.2);
   };
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   ctx.strokeStyle = `rgba(${c[0] * 0.55 | 0},${c[1] * 0.48 | 0},${c[2] * 0.4 | 0},.85)`;
