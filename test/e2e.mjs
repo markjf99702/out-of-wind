@@ -567,6 +567,24 @@ try {
     assert.ok(q.strokes <= q.par, `${q.strokes} strokes, over par ${q.par}`);
     await c.close();
   }
+  {
+    step('a long stroke that leaves a high end rough says which end to take it off');
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US' });
+    const pg = await c.newPage();
+    watch(pg, 'ends');
+    const cd = await c.newCDPSession(pg);
+    await pg.goto(base + '#1');
+    await pg.click('#introGo');
+    const { L } = await pg.evaluate(() => ({ L: window.outOfWind.board().L }));
+    await touchSwipe(pg, cd, -15, L * 0.75, 52); // lifted a quarter short of the far end
+    assert.equal(await pg.textContent('#toast'), 'Run each stroke off the end of the board: the blade stops cutting where you lift the plane.');
+    await pg.click('#menuBtn');
+    await pg.click('#restartBtn');
+    await pg.click('#introGo');
+    await touchSwipe(pg, cd, L * 0.25, L + 15, 52); // put down a quarter of the way on
+    assert.equal(await pg.textContent('#toast'), 'Start each stroke off the end of the board: the blade only cuts from where you put the plane down.');
+    await c.close();
+  }
 
   // ---------- a laptop, and a phone on its side ----------
   for (const [label, viewport] of [['laptop', { width: 1280, height: 800 }], ['sideways', { width: 844, height: 390 }]]) {

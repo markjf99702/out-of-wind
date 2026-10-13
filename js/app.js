@@ -606,10 +606,13 @@ function endsLeft(r) {
     const a = res(i, y), c = res(k, y);
     return a.rough && a.z > c.z + 0.02;
   };
-  const fwd = r.dir > 0;
-  if (!standsHigh(r.startIn, !fwd, r.y0) && !standsHigh(r.stopShort, fwd, r.y)) return false;
+  const fwd = r.dir > 0, start = standsHigh(r.startIn, !fwd, r.y0), stop = standsHigh(r.stopShort, fwd, r.y);
+  if (!start && !stop) return false;
   endsSaid = true;
-  toast('Start each stroke off the end of the board, and run it off the other: the blade only cuts from where you put the plane down.', 5200);
+  // Said for the end it missed: the one it started from, the one it was heading for, or both.
+  toast(start && stop ? 'Start each stroke off one end of the board and run it off the other: the blade only cuts between where you put the plane down and where you lift it.'
+    : start ? 'Start each stroke off the end of the board: the blade only cuts from where you put the plane down.'
+      : 'Run each stroke off the end of the board: the blade stops cutting where you lift the plane.', 5200);
   return true;
 }
 
