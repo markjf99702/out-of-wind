@@ -53,7 +53,7 @@ export const BOARDS = [
   },
   {
     no: 9, wood: 'mahogany', L: 762, W: 165, seed: 910, cup: 0.17, twist: 0.1, ribbon: 46, rough: 0.12, spare: 0.6,
-    title: 'Interlocked', t0: 20.1, par: 117, best: 19.65,
+    title: 'Interlocked', t0: 20.17, par: 122, best: 19.65,
     note: 'Interlocked grain: stripes down the board run opposite ways, so every stroke goes against some of it. Flatten it, then take fine passes with the smoother until the tear-out is gone.',
   },
   {
