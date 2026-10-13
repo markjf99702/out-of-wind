@@ -227,26 +227,28 @@ export class Scene {
       }
       tc.closePath();
     };
+    // About 17 screen pixels long on a phone, where a cell is 5; no more than 18 where cells are bigger.
+    const cell = (w * this.s) / this.ppm, f = Math.min(1.7, 9 / cell);
     // The lifted rim.
     tc.fillStyle = pale;
-    ragged(w * 1.7, h * 1.05);
+    ragged(w * f, h * f * 0.62);
     tc.fill();
     // The pit, and its deepest part.
     tc.fillStyle = `rgba(${late[0] * 0.42 | 0},${late[1] * 0.34 | 0},${late[2] * 0.28 | 0},0.94)`;
-    ragged(w * 1.35, h * 0.72);
+    ragged(w * f * 0.8, h * f * 0.42);
     tc.fill();
     tc.fillStyle = `rgba(${late[0] * 0.2 | 0},${late[1] * 0.15 | 0},${late[2] * 0.12 | 0},0.9)`;
-    ragged(w * 0.75, h * 0.36);
+    ragged(w * f * 0.44, h * f * 0.21);
     tc.fill();
     // Broken fibres sticking out along the grain.
     tc.strokeStyle = pale;
     tc.lineWidth = Math.max(0.9, w * 0.14);
     tc.lineCap = 'round';
     for (let q = 0; q < 6; q++) {
-      const side = q % 2 ? 1 : -1, sy = cy + (r() - 0.5) * h * 1.3;
+      const side = q % 2 ? 1 : -1, sy = cy + (r() - 0.5) * h * f * 0.76;
       tc.beginPath();
-      tc.moveTo(cx + side * w * 0.9, sy);
-      tc.lineTo(cx + side * w * (1.7 + r() * 0.7), sy + (r() - 0.5) * h * 0.5);
+      tc.moveTo(cx + side * w * f * 0.53, sy);
+      tc.lineTo(cx + side * w * f * (1 + r() * 0.4), sy + (r() - 0.5) * h * 0.5);
       tc.stroke();
     }
   }
