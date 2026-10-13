@@ -359,6 +359,41 @@ try {
   await ctx.setOffline(false);
   await ctx.close();
 
+  // ---------- Back, the way Android's gesture does it ----------
+  {
+    step('Back on a board goes to the rack, Back on the rack leaves, and the rack offers the board part-way through');
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'en-US' });
+    const pg = await c.newPage();
+    watch(pg, 'back');
+    const cd = await c.newCDPSession(pg);
+    const g = (marks, strokes) => ({ marks, strokes, thick: 19.9, torn: 0, flat: 0.12 });
+    await pg.addInitScript(s => { if (location.protocol === 'http:' && !localStorage.getItem('out-of-wind.v1')) localStorage.setItem('out-of-wind.v1', JSON.stringify(s)); },
+      { v: 1, best: { 1: g(4, 25), 2: g(3, 30) }, benches: {}, attempts: {}, seen: { swipe: 1, stroke: 1, pencil: 1 }, unit: 'in', sound: false });
+    await pg.goto(base);
+    const home = () => pg.waitForSelector('#home', { state: 'visible' });
+    // Board 3, part-way: one stroke, then the arrow back to the rack.
+    await pg.click('.plank[data-no="3"]');
+    await pg.click('#introGo');
+    await touchSwipe(pg, cd, -15, 780, 30);
+    assert.equal((await peek(pg)).strokes, 1);
+    await pg.click('#backBtn');
+    await home();
+    assert.equal(await pg.textContent('#resumeBtn'), 'Back to No. 3 · Poplar');
+    // A finished board, opened to look at it and left with the system's Back.
+    await pg.click('.plank[data-no="1"]');
+    await pg.waitForSelector('#intro', { state: 'visible' });
+    await pg.click('#introGo');
+    await pg.goBack();
+    await home();
+    assert.equal(await pg.evaluate(() => location.hash), '', 'Back from a board is the rack');
+    assert.ok(await pg.isVisible('#resumeBtn'), 'the rack still offers the board part-way through');
+    assert.equal(await pg.textContent('#resumeBtn'), 'Back to No. 3 · Poplar');
+    // And from the rack, Back leaves: none of the boards you opened come back.
+    await pg.goBack();
+    assert.equal(pg.url(), 'about:blank', 'Back from the rack leaves the game');
+    await c.close();
+  }
+
   // ---------- a finger that never quite reaches the ends ----------
   {
     step('board 1, swiped lane by lane from 8 px onto the board to 8 px short of the far end, finishes within par');

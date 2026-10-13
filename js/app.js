@@ -91,12 +91,25 @@ function renderRack() {
   $('progress').textContent = done.length === BOARDS.length
     ? `All ${BOARDS.length} done${fas ? ', ' + fas + ' graded FAS' : ''}. The tabletop’s ready.`
     : `${done.length} of ${BOARDS.length} done${fas ? ', ' + fas + ' graded FAS' : ''}`;
-  const bench = state.last && state.benches[state.last];
-  const resume = $('resumeBtn');
-  if (bench && !bench.finished && !bench.failed && unlocked(state.last)) {
-    resume.hidden = false;
-    resume.textContent = 'Back to ' + boardName(BOARDS[state.last - 1], WOODS);
-  } else resume.hidden = true;
+  const back = resumable(), resume = $('resumeBtn');
+  resume.hidden = !back;
+  if (back) {
+    resume.dataset.no = back;
+    resume.textContent = 'Back to ' + boardName(BOARDS[back - 1], WOODS);
+  }
+}
+
+// The board to come back to: the one part-way through that you worked on last. Opening a board you've
+// finished, to look or to plane it again, doesn't count until you plane it.
+function resumable() {
+  let pick = null;
+  for (const [k, b] of Object.entries(state.benches)) {
+    const no = +k;
+    if (!b || b.finished || b.failed || !BOARDS[no - 1] || !unlocked(no)) continue;
+    const t = b.t || (no === state.last ? 1 : 0); // benches saved before they were timed
+    if (!pick || t > pick.t || (t === pick.t && no > pick.no)) pick = { no, t };
+  }
+  return pick ? pick.no : 0;
 }
 
 const thumbs = new Map();
@@ -133,7 +146,7 @@ $('rack').addEventListener('click', e => {
   if (!unlocked(no)) { lockedNote(btn); return; }
   go(no);
 });
-$('resumeBtn').addEventListener('click', () => go(state.last));
+$('resumeBtn').addEventListener('click', e => go(+e.currentTarget.dataset.no));
 
 // A locked plank says which board opens it, pinned to the plank you tapped.
 let noteTimer = 0;
@@ -152,15 +165,30 @@ function lockedNote(btn) {
 }
 
 // ---------- moving between the rack and the bench ----------
-function go(no) { location.hash = no ? '#' + no : ''; }
+// Opening a board from the rack adds one step to the browser's history, so Back on the bench (or
+// Android's back gesture) goes to the rack, and Back on the rack leaves the game. Going from board to
+// board doesn't add another, and the bench's own back arrow goes back along the one that was added.
+let shown = null; // what's showing: a board's number, or 0 for the rack
+function go(no) {
+  if (!no) {
+    if (history.state && history.state.fromRack) { history.back(); return; } // the rack is the step before
+    history.replaceState(null, '', location.pathname + location.search);
+  } else if (!$('bench').hidden) history.replaceState(history.state, '', '#' + no);
+  else history.pushState({ fromRack: 1 }, '', '#' + no);
+  route();
+}
 function route() {
   const no = parseInt(location.hash.slice(1), 10);
-  if (no >= 1 && no <= BOARDS.length && unlocked(no)) openBoard(no);
+  const want = no >= 1 && no <= BOARDS.length && unlocked(no) ? no : 0;
+  if (want === shown) return; // a back step fires both popstate and hashchange
+  if (want) openBoard(want);
   else showHome();
 }
+window.addEventListener('popstate', route);
 window.addEventListener('hashchange', route);
 
 function showHome() {
+  shown = 0;
   closeSheets();
   if (stroke) endStroke();
   $('bench').hidden = true;
@@ -171,6 +199,7 @@ function showHome() {
 }
 
 function openBoard(no, fresh = false) {
+  shown = no;
   closeSheets();
   def = BOARDS[no - 1];
   board = new Board(def);
@@ -756,7 +785,7 @@ function hint(key, text, always) {
 function persist() {
   if (!board) return;
   state.benches[def.no] = {
-    strokes, rs: rand.state(), board: board.save(), scribble: scene.scribbleSeed ?? null, finished, failed, keep: keepGoing,
+    strokes, rs: rand.state(), board: board.save(), scribble: scene.scribbleSeed ?? null, finished, failed, keep: keepGoing, t: Date.now(),
   };
   save(state);
 }
