@@ -59,7 +59,7 @@ To put it online with GitHub Pages: **Settings → Pages → Build and deploymen
 - `js/sound.js`: shavings, tear-out, pencil, the steel rule, the winding sticks and the bell, all made with Web Audio.
 - `js/units.js`, `js/store.js`, `js/rng.js`: inches or millimetres, what's kept in localStorage, and seeded randomness.
 - `fonts/`: Young Serif, Alegreya Sans and Reenie Beanie (SIL Open Font License), served from here so nothing loads from elsewhere.
-- `sw.js`: keeps a copy for playing offline. `npm test` checks that it lists every file the page needs.
+- `sw.js`: keeps a copy for playing offline. `npm test` checks that it lists every file the page needs. On a connection that isn't answering, a page opens from that copy after four seconds. `FILES` in it is a fingerprint of the files it keeps: change one and `npm test` says what to set it to, so a release never leaves the copy half old.
 - `test/unit.test.mjs`: the planes, the measurements, the boards, the solver and the cards, in Node. `test/e2e.mjs` plays the real page in Chromium on a phone, a laptop and a phone on its side, through to the tabletop, and checks it installs and plays offline.
 - `og.png`, `docs/` and `tools/screenshots.mjs`: the link preview, the screenshots above, and the script that takes them. `icon.svg`, `tools/icon-full-bleed.svg` and `tools/make-icons.mjs`: the icon, and the script that draws the PNG icons from it.
 - `scripts/build.mjs`: bundles the game into one file for the playable copy, with the fonts and icon inside it. What it writes in `dist/` isn't kept in the repo.
